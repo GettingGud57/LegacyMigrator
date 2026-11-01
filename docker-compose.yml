@@ -1,0 +1,19 @@
+# SQL Server 2022 for LegacyMigrator. Start with: docker compose up -d
+# MSSQL_PASSWORD is read from .env in this folder (never committed).
+# Apple chip Macs: turn on Docker Desktop's Rosetta setting first, or SQL Server crashes.
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: sql2022
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_PASSWORD}
+      MSSQL_MEMORY_LIMIT_MB: "2048"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+volumes:
+  mssql-data:
