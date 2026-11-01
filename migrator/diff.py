@@ -1,4 +1,5 @@
 import pyarrow.parquet as pq
+from collections import Counter
 
 def load(path):
     return pq.read_table(path).to_pylist()
@@ -18,6 +19,17 @@ def index_by_key(rows, key_cols):
     return {
         "index":index,
         "dupes":dupes
+    }
+    
+    
+def compare_rows(rows_a, rows_b, cols):
+    a_rows = [tuple(row[col] for col in cols) for row in rows_a]
+    b_rows = [tuple(row[col] for col in cols) for row in rows_b]
+    a_count = Counter(a_rows)
+    b_count = Counter(b_rows)
+    return {
+        "only_a": list((a_count - b_count).elements()),
+        "only_b": list((b_count - a_count).elements()),
     }
 
 
@@ -42,9 +54,7 @@ def diff(rows_a, rows_b, key_cols, ignore_cols=()):
     for key in intersect:
         a_row = a_index[key]
         b_row = b_index[key]
-        for col in a_row.keys():
-            if col in ignore_cols:
-                continue
+        for col in  (a_cols & b_cols)-set(ignore_cols):
             if a_row[col] != b_row[col]:
                 changed.append({
                     "key":key,
@@ -104,26 +114,64 @@ def report(result, limit=10):
     show("WARNING columns only in B", result["cols_only_b"], limit)
 
 
-if __name__ == "__main__":
-    # Warm-up: the worked example from the question
-    a = [
-        {"id": 1, "name": "Anna", "city": "Cork"},
-        {"id": 2, "name": "Ben",  "city": "Cork"},
-        {"id": 3, "name": "Cara", "city": "Galway"},
-    ]
-    b = [
-        {"id": 4, "name": "Dan",  "city": "Sligo"},
-        {"id": 1, "name": "Anna", "city": "Dublin"},
-        {"id": 2, "name": "Ben",  "city": "Cork"},
-    ]
-    print("=== worked example ===")
-    report(diff(a, b, ["id"]))
+def reconcile(rows_a, rows_b, key_cols=None, ignore_cols=()):
+    """compare_rows decides PASS/FAIL. diff only explains a FAIL."""
+    ignore = set(ignore_cols)
+    a_cols = set(rows_a[0]) if rows_a else set()
+    b_cols = set(rows_b[0]) if rows_b else set()
+    cols = sorted((a_cols & b_cols) - ignore)            # same column order for A and B
+    result = compare_rows(rows_a, rows_b, cols)          # whole rows with no exact match
+    result["cols_only_a"] = sorted(a_cols - b_cols - ignore)
+    result["cols_only_b"] = sorted(b_cols - a_cols - ignore)
+    passed = not any(result.values())                    # PASS only if all four lists are empty
+    result.update(status="pass" if passed else "fail", compared_cols=cols, explanation=None)
+    if not passed and key_cols:
+        ex = diff(rows_a, rows_b, key_cols, ignore_cols)
+        dupes = set(ex["dupes_a"] + ex["dupes_b"])       # changes on duplicate keys are guesses
+        ex["changed"] = [c for c in ex["changed"] if c["key"] not in dupes]
+        result["explanation"] = ex
+    return result
 
-    # Real test: what the legacy sales job changed in staging
+
+def print_verdict(result, limit=10):
+    print(result["status"].upper())
+    print(f"  identical-twin check: {len(result['only_a'])} rows in A and "
+          f"{len(result['only_b'])} in B have no identical twin "
+          f"({len(result['compared_cols'])} columns compared)")
     
-    
-    print("\n=== Sale_Staging: before vs after ===")
-    rows_a = load("snapshots/sale/before/Integration.Sale_Staging.parquet")
-    rows_b = load("snapshots/sale/after/Integration.Sale_Staging.parquet")
-    report(diff(rows_a, rows_b, key_cols=["Sale Staging Key"]))
-    
+
+    ex = result["explanation"]
+    if ex:
+        print("  details, pairing rows by key:")
+        report(ex, limit)
+    if result["status"] == "fail" and (not ex or ex["dupes_a"] or ex["dupes_b"]):
+        show("whole rows only in A", result["only_a"], limit)
+        show("whole rows only in B", result["only_b"], limit)
+        show("WARNING columns only in A", result["cols_only_a"], limit)
+        show("WARNING columns only in B", result["cols_only_b"], limit)
+        
+
+
+
+if __name__ == "__main__":
+    a = [{"id": 1, "name": "Anna", "city": "Cork"},
+         {"id": 2, "name": "Ben",  "city": "Cork"},
+         {"id": 3, "name": "Cara", "city": "Galway"}]
+    b = [{"id": 4, "name": "Dan",  "city": "Sligo"},
+         {"id": 1, "name": "Anna", "city": "Dublin"},
+         {"id": 2, "name": "Ben",  "city": "Cork"}]
+    print("=== worked example ===")
+    print_verdict(reconcile(a, b, ["id"]))
+
+    print("\n=== duplicate key ===")
+    print_verdict(reconcile([{"id": 5, "city": "Cork"}, {"id": 5, "city": "Galway"}],
+                            [{"id": 5, "city": "Galway"}], ["id"]))
+
+    staging = "Integration.Sale_Staging.parquet"
+    before = load(f"snapshots/sale/before/{staging}")
+
+    print("\n=== Sale_Staging: before vs after (the old job's changes) ===")
+    print_verdict(reconcile(before, load(f"snapshots/sale/after/{staging}"), ["Sale Staging Key"]))
+
+    print("\n=== Sale_Staging: before vs spark (noop round trip) ===")
+    print_verdict(reconcile(before, load(f"snapshots/sale/spark/{staging}"), ["Sale Staging Key"]))
