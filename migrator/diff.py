@@ -154,18 +154,7 @@ def print_verdict(result, limit=10):
 
 
 if __name__ == "__main__":
-    a = [{"id": 1, "name": "Anna", "city": "Cork"},
-         {"id": 2, "name": "Ben",  "city": "Cork"},
-         {"id": 3, "name": "Cara", "city": "Galway"}]
-    b = [{"id": 4, "name": "Dan",  "city": "Sligo"},
-         {"id": 1, "name": "Anna", "city": "Dublin"},
-         {"id": 2, "name": "Ben",  "city": "Cork"}]
-    print("=== worked example ===")
-    print_verdict(reconcile(a, b, ["id"]))
 
-    print("\n=== duplicate key ===")
-    print_verdict(reconcile([{"id": 5, "city": "Cork"}, {"id": 5, "city": "Galway"}],
-                            [{"id": 5, "city": "Galway"}], ["id"]))
 
     staging = "Integration.Sale_Staging.parquet"
     before = load(f"snapshots/sale/before/{staging}")
@@ -175,3 +164,8 @@ if __name__ == "__main__":
 
     print("\n=== Sale_Staging: before vs spark (noop round trip) ===")
     print_verdict(reconcile(before, load(f"snapshots/sale/spark/{staging}"), ["Sale Staging Key"]))
+    
+    print("\n=== Sale_Staging: after (legacy) vs spark (translation) ===")
+    print_verdict(reconcile(load(f"snapshots/sale/after/{staging}"),
+                            load(f"snapshots/sale/spark/{staging}"),
+                            ["Sale Staging Key"]))
