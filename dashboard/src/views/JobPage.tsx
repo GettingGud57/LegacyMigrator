@@ -7,7 +7,7 @@ import {
 import { TABS, go, href, type Route, type Tab } from '../router';
 import { HoldoutBadge, Icon, OUTCOME_TONE, OutcomeMark, StatusPill, TableVerdictTag } from '../ui';
 import { CodeView } from './CodeView';
-import { Ignored, RunTables } from './TableResults';
+import { ExtraChecks, Ignored, RunTables } from './TableResults';
 
 type JobRoute = Extract<Route, { page: 'job' }>;
 
@@ -270,6 +270,7 @@ function EvidenceTable({ t }: { t: TableResult }) {
       ) : (
         <p className="small muted">Not compared yet.</p>
       )}
+      <ExtraChecks t={t} />
       <Ignored t={t} />
       <details className="raw">
         <summary>Raw result from the file</summary>

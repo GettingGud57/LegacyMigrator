@@ -46,6 +46,11 @@ class Checker:
                 self.problems.append(f"{where}.ignored[{i}]: every ignored column needs a reason")
         self.need(t, "rows_legacy", (int, type(None)), where)
         self.need(t, "rows_spark", (int, type(None)), where)
+        for i, c in enumerate(t.get("extra_checks") or []):
+            self.need(c, "name", (str,), f"{where}.extra_checks[{i}]")
+            self.need(c, "detail", (str,), f"{where}.extra_checks[{i}]")
+            if c.get("status") not in ("pass", "fail"):
+                self.problems.append(f"{where}.extra_checks[{i}].status: must be 'pass' or 'fail'")
         result = self.need(t, "result", (dict, type(None)), where)
         if result is None:
             return
@@ -116,9 +121,16 @@ class Checker:
             self.job(job, f"jobs[{i}]")
 
 
+def table_passes(t):
+    """reconcile() said pass, and so did every extra check."""
+    if (t.get("result") or {}).get("status") != "pass":
+        return False
+    return all(c.get("status") == "pass" for c in t.get("extra_checks") or [])
+
+
 def all_pass(run):
     tables = (run or {}).get("tables") or []
-    return bool(tables) and all((t.get("result") or {}).get("status") == "pass" for t in tables)
+    return bool(tables) and all(table_passes(t) for t in tables)
 
 
 def verified_by_evidence(attempts):
@@ -134,7 +146,7 @@ def main():
         sys.exit("Usage: python scripts/check_results.py results.json [more.json ...]")
     bad = 0
     for path in sys.argv[1:]:
-        if path.endswith("manifest.json"):
+        if path.endswith(("manifest.json", "sqlglot_probe.json")):  # not results files
             continue
         with open(path, encoding="utf-8") as f:
             data = json.load(f)

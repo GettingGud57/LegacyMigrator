@@ -46,15 +46,17 @@ function TableRow({ t }: { t: TableResult }) {
         <code className="tname">{t.table}</code>
         <span className="tstat">
           {v === 'not_compared' && <span className="muted">{t.rows_legacy != null ? `${num(t.rows_legacy)} rows waiting` : 'waiting'}</span>}
-          {v === 'pass' && <>{num(t.rows_legacy ?? 0)} rows · {r!.compared_cols.length} columns, all identical</>}
-          {v === 'fail' && <span className="bad">{plural(wrong.a, 'row')} of {num(t.rows_legacy ?? 0)} wrong</span>}
+          {v === 'pass' && <>{plural(t.rows_legacy ?? 0, 'row')} · {plural(r!.compared_cols.length, 'column')}, all identical</>}
+          {v === 'fail' && r!.status === 'fail' && <span className="bad">{plural(wrong.a, 'row')} of {num(t.rows_legacy ?? 0)} wrong</span>}
+          {v === 'fail' && r!.status === 'pass' && <span className="bad">rows match, but a stricter check failed</span>}
           {t.ignored.length > 0 && <span className="ign-chip" title="Columns left out of the comparison">{t.ignored.length} ignored</span>}
         </span>
         <span className="chev" aria-hidden>{open ? '−' : '+'}</span>
       </button>
       {open && (
         <div className="table-detail">
-          {v === 'fail' && <Mismatches t={t} />}
+          {v === 'fail' && r!.status === 'fail' && <Mismatches t={t} />}
+          <ExtraChecks t={t} />
           {v === 'pass' && (
             <p>
               Every one of the {num(t.rows_legacy ?? 0)} rows the old system produced has an identical twin in the new
@@ -66,6 +68,26 @@ function TableRow({ t }: { t: TableResult }) {
         </div>
       )}
     </li>
+  );
+}
+
+/** Stricter checks some producers (migrator/check.py) run on top of reconcile(). */
+export function ExtraChecks({ t }: { t: TableResult }) {
+  if (!t.extra_checks?.length) return null;
+  return (
+    <div className="ignored">
+      <h4>Extra checks</h4>
+      <ul>
+        {t.extra_checks.map((c) => (
+          <li key={c.name}>
+            <span className={c.status === 'pass' ? 'xc-pass' : 'bad'}>
+              <Icon name={c.status === 'pass' ? 'check' : 'cross'} size={14} /> {c.name.replace(/_/g, ' ')}
+            </span>
+            <span>{c.detail}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

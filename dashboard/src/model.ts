@@ -19,7 +19,11 @@ export type Outcome =
 export type ShownStatus = JobStatus | 'unconfirmed';
 
 export function tableVerdict(t: TableResult): TableVerdict {
-  return t.result ? t.result.status : 'not_compared';
+  // A failed extra check (e.g. the Spark output file is missing) fails the table even with no result
+  const extraFailed = (t.extra_checks ?? []).some((c) => c.status === 'fail');
+  if (!t.result) return extraFailed ? 'fail' : 'not_compared';
+  if (t.result.status === 'fail') return 'fail';
+  return (t.extra_checks ?? []).every((c) => c.status === 'pass') ? 'pass' : 'fail';
 }
 
 export interface RunSummary {

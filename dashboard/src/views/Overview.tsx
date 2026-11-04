@@ -95,7 +95,7 @@ export function Overview({ data }: { data: ResultsFile }) {
                   )}
                 </span>
                 <span className="cell num" data-label="Tables matched">
-                  {dev.tables ? <>{dev.passed} <span className="muted">/ {dev.tables}</span></> : <span className="muted">-</span>}
+                  {dev.tables ? <span>{dev.passed} <span className="muted">/ {dev.tables}</span></span> : <span className="muted">-</span>}
                 </span>
                 <span className="cell num" data-label="Rows compared">
                   {dev.rowsCompared + hold.rowsCompared ? num(dev.rowsCompared + hold.rowsCompared) : <span className="muted">-</span>}

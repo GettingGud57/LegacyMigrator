@@ -91,6 +91,7 @@ They're cheap to compare and prove the job didn't touch them.
 | `rows_spark` | int or null | Rows in the `spark/` table. |
 | `result` | object or null | What `reconcile(after_rows, spark_rows, key_cols, ignore_cols)` returned. `null` = not compared yet. |
 | `counts` | object | Optional. Full list sizes before cutting: `{"only_a": 1190, "only_b": 1190, "changed": 1190}`. |
+| `extra_checks` | list | Optional. Stricter checks on top of `reconcile()`: `[{"name": "unique_key", "status": "pass", "detail": "plain sentence"}]`. The table only passes if `result.status` and every extra check pass. |
 
 A is always the legacy `after/` output and B is always the Spark output.
 Pass them to `reconcile()` in that order.

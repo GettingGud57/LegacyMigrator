@@ -62,6 +62,14 @@ export interface TableResult {
   result: ReconcileResult | null;
   /** Full list sizes before they were cut. */
   counts?: { only_a?: number; only_b?: number; changed?: number };
+  /** Optional stricter checks on top of reconcile(). The table only passes if all of them pass too. */
+  extra_checks?: ExtraCheck[];
+}
+
+export interface ExtraCheck {
+  name: string;
+  status: 'pass' | 'fail';
+  detail: string;
 }
 
 export interface ReconcileResult {
