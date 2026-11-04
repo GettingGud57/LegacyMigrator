@@ -1,0 +1,7 @@
+# Pinned so the cloud bench and the Mac run the same versions.
+# Python 3.10+ (the Mac runs 3.10). PySpark 4 needs Java 17 or 21.
+pyspark==4.2.1
+py4j==0.10.9.9
+pyarrow==25.0.1
+pyodbc==5.3.0
+python-dotenv==1.2.4
