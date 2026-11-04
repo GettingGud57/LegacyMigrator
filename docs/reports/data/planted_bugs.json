@@ -1,0 +1,381 @@
+{
+  "what": "Planted bugs in jobs_pyspark/sale.py, each run through run_spark.py and check.py",
+  "generated_at": "2026-11-04T21:44:52Z",
+  "sample": false,
+  "datasets": {
+    "dev": {
+      "job": "sale",
+      "ai_can_see": true
+    },
+    "holdout": {
+      "job": "sale_holdout",
+      "ai_can_see": false
+    }
+  },
+  "bugs": [
+    {
+      "bug": "real_translation",
+      "description": "the real AI translation, no planted bug",
+      "file": "jobs_pyspark/sale.py",
+      "runs": {
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 47.4
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 44.1
+        }
+      },
+      "outcome": "passes both, as it should"
+    },
+    {
+      "bug": "changed_rows_only",
+      "description": "Fact.Sale returns only the inserted rows, not the whole table",
+      "file": "experiments/planted_bugs/changed_rows_only.py",
+      "runs": {
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 223041,
+              "rows_unmatched_spark": 0,
+              "changed_columns": []
+            }
+          ],
+          "seconds": 35.2
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 222122,
+              "rows_unmatched_spark": 0,
+              "changed_columns": []
+            }
+          ],
+          "seconds": 35.8
+        }
+      },
+      "outcome": "caught by dev"
+    },
+    {
+      "bug": "default_decimal",
+      "description": "Money columns cast with Spark's default decimal(10,0), losing the cents",
+      "file": "experiments/planted_bugs/default_decimal.py",
+      "runs": {
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 4078,
+              "rows_unmatched_spark": 4078,
+              "changed_columns": []
+            }
+          ],
+          "seconds": 43.6
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 4682,
+              "rows_unmatched_spark": 4682,
+              "changed_columns": []
+            }
+          ],
+          "seconds": 44.0
+        }
+      },
+      "outcome": "caught by dev"
+    },
+    {
+      "bug": "forget_cutoff",
+      "description": "The Integration.[ETL Cutoff] update is left out",
+      "file": "experiments/planted_bugs/forget_cutoff.py",
+      "runs": {
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 44.2
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Integration.ETL Cutoff",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 1,
+              "rows_unmatched_spark": 1,
+              "changed_columns": [
+                "Cutoff Time"
+              ]
+            }
+          ],
+          "seconds": 44.6
+        }
+      },
+      "outcome": "caught only by holdout"
+    },
+    {
+      "bug": "ge_valid_from",
+      "description": "Dimension lookups use >= instead of > on [Valid From]",
+      "file": "experiments/planted_bugs/ge_valid_from.py",
+      "runs": {
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 42.9
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 42.8
+        }
+      },
+      "outcome": "caught by nothing"
+    },
+    {
+      "bug": "no_delete",
+      "description": "Old lines of reloaded invoices are not deleted before the new ones are inserted",
+      "file": "experiments/planted_bugs/no_delete.py",
+      "runs": {
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 0,
+              "rows_unmatched_spark": 5224,
+              "changed_columns": []
+            }
+          ],
+          "seconds": 46.2
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 0,
+              "rows_unmatched_spark": 6143,
+              "changed_columns": []
+            }
+          ],
+          "seconds": 46.8
+        }
+      },
+      "outcome": "caught by dev"
+    },
+    {
+      "bug": "no_valid_to",
+      "description": "Dimension lookups forget the [Valid To] condition",
+      "file": "experiments/planted_bugs/no_valid_to.py",
+      "runs": {
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 5224,
+              "rows_unmatched_spark": 5224,
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 5224,
+              "rows_unmatched_spark": 5224,
+              "changed_columns": [
+                "City Key",
+                "Salesperson Key"
+              ]
+            }
+          ],
+          "seconds": 43.6
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 6143,
+              "rows_unmatched_spark": 6143,
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 6143,
+              "rows_unmatched_spark": 6143,
+              "changed_columns": [
+                "City Key",
+                "Salesperson Key"
+              ]
+            }
+          ],
+          "seconds": 43.4
+        }
+      },
+      "outcome": "caught by dev"
+    },
+    {
+      "bug": "null_not_zero",
+      "description": "No matching dimension row gives NULL instead of 0 (COALESCE dropped)",
+      "file": "experiments/planted_bugs/null_not_zero.py",
+      "runs": {
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 2093,
+              "rows_unmatched_spark": 2093,
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 2093,
+              "rows_unmatched_spark": 2093,
+              "changed_columns": [
+                "Bill To Customer Key",
+                "Customer Key"
+              ]
+            }
+          ],
+          "seconds": 43.1
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 2374,
+              "rows_unmatched_spark": 2374,
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "rows_unmatched_legacy": 2374,
+              "rows_unmatched_spark": 2374,
+              "changed_columns": [
+                "Bill To Customer Key",
+                "Customer Key"
+              ]
+            }
+          ],
+          "seconds": 43.0
+        }
+      },
+      "outcome": "caught by dev"
+    },
+    {
+      "bug": "tax_rate_scale",
+      "description": "Tax Rate written as decimal(18,2) instead of decimal(18,3)",
+      "file": "experiments/planted_bugs/tax_rate_scale.py",
+      "runs": {
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 43.6
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 42.1
+        }
+      },
+      "outcome": "caught by nothing"
+    },
+    {
+      "bug": "top1_desc",
+      "description": "TOP(1) ... ORDER BY [Valid From] taken in the wrong order (newest first)",
+      "file": "experiments/planted_bugs/top1_desc.py",
+      "runs": {
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 41.0
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": [],
+          "seconds": 41.1
+        }
+      },
+      "outcome": "caught by nothing"
+    }
+  ]
+}

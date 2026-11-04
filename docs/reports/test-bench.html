@@ -1,0 +1,452 @@
+<title>LegacyMigrator Test Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (about 68ch) with wide blocks (tables, diagrams, terminal output) allowed to run to 1100px.
+   Palette: an audit ledger. Ink blue for structure, verdict green / red only for PASS and FAIL. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #18212f;
+  --muted: #586276;
+  --rule: #d9dee7;
+  --accent: #2b4fd6;
+  --accent-soft: #e6ebfb;
+  --pass: #17794a;
+  --pass-soft: #e2f3ea;
+  --fail: #b3261e;
+  --fail-soft: #fbe7e5;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d9;
+  --code-bg: #eef1f6;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141c; --surface: #171c26; --ink: #e4e8f0; --muted: #9aa4b8; --rule: #2b3342;
+    --accent: #8ea6ff; --accent-soft: #1f2a4d; --pass: #5fd394; --pass-soft: #14301f;
+    --fail: #ff8a80; --fail-soft: #3a1714; --warn: #f0c060; --warn-soft: #33270c; --code-bg: #1c2230;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141c; --surface: #171c26; --ink: #e4e8f0; --muted: #9aa4b8; --rule: #2b3342;
+  --accent: #8ea6ff; --accent-soft: #1f2a4d; --pass: #5fd394; --pass-soft: #14301f;
+  --fail: #ff8a80; --fail-soft: #3a1714; --warn: #f0c060; --warn-soft: #33270c; --code-bg: #1c2230;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 80px;
+}
+main { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+main > *, section > * { min-width: 0; }
+.prose { max-width: 68ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--rule); }
+h3 { font-size: 1.15rem; font-weight: 700; margin-top: 28px; }
+p, li { max-width: 68ch; }
+p { margin: 10px 0; }
+ul, ol { padding-left: 1.3em; margin: 8px 0; }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.eyebrow { font: 600 0.75rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.15rem; color: var(--ink); max-width: 64ch; }
+.meta { color: var(--muted); font-size: 0.9rem; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 20px 0 8px; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.tile .label { font: 600 0.72rem/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tile .value { font: 700 1.5rem/1.1 var(--display); }
+.tile .sub { font-size: 0.85rem; color: var(--muted); }
+.pill { display: inline-block; font: 600 0.72rem/1 var(--mono); letter-spacing: 0.05em; padding: 4px 7px; border-radius: 999px; white-space: nowrap; }
+.pass { color: var(--pass); } .fail { color: var(--fail); } .warn { color: var(--warn); }
+.pill.pass { background: var(--pass-soft); } .pill.fail { background: var(--fail-soft); } .pill.warn { background: var(--warn-soft); }
+.pill.info { background: var(--accent-soft); color: var(--accent); }
+.wide { overflow-x: auto; margin: 12px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 600 0.72rem/1.3 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 0.85rem; }
+tr:last-child td { border-bottom: 0; }
+pre { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font: 0.8rem/1.5 var(--mono); margin: 12px 0; }
+pre.cmd { border-left: 3px solid var(--accent); }
+.callout { background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--accent); border-radius: 6px; padding: 12px 16px; max-width: 76ch; margin: 14px 0; }
+.callout.bad { border-left-color: var(--fail); }
+.callout.good { border-left-color: var(--pass); }
+.callout p:first-child { margin-top: 0; } .callout p:last-child { margin-bottom: 0; }
+figure { margin: 16px 0; }
+figcaption { color: var(--muted); font-size: 0.88rem; margin-top: 6px; max-width: 76ch; }
+svg { max-width: 100%; height: auto; display: block; }
+svg text { font-family: var(--body); fill: var(--ink); }
+svg .box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+svg .box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .box-pass { fill: var(--pass-soft); stroke: var(--pass); stroke-width: 1.5; }
+svg .box-fail { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.5; }
+svg .box-warn { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.5; }
+svg .line { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+svg .line-fail { stroke: var(--fail); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+svg .arrow { fill: var(--muted); }
+svg .small { font-size: 11px; fill: var(--muted); }
+svg .label { font-size: 13px; font-weight: 600; }
+svg .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; fill: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.two > * { min-width: 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.9rem; margin: 12px 0; }
+@media (prefers-reduced-motion: no-preference) { a { transition: color .15s; } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">LegacyMigrator · branch claude/test-bench · 4 Nov 2026</div>
+  <h1 style="margin-top:10px">The test bench: three jobs, a holdout, and a checker that got tested</h1>
+  <p class="lede">The whole pipeline now runs in a cloud container from one command. The checker covers every table a job touches, decides which columns can't match by running the legacy job twice, and was attacked with nine planted bugs.</p>
+  <div class="tiles">
+    <div class="tile"><span class="label">Sale · dev</span><span class="value pass">PASS 8/8</span><span class="sub">5,224 lines staged, all four written tables match</span></div>
+    <div class="tile"><span class="label">Sale · holdout</span><span class="value pass">PASS 8/8</span><span class="sub">6,143 lines the AI never saw</span></div>
+    <div class="tile"><span class="label">City · 1st attempt</span><span class="value pass">PASS 4/4</span><span class="sub">AI translation, unedited</span></div>
+    <div class="tile"><span class="label">Movement · 1st attempt</span><span class="value fail">FAIL 6/8</span><span class="sub">MERGE logic right, timestamp type wrong</span></div>
+    <div class="tile"><span class="label">Planted bugs</span><span class="value" id="tile-bugs">6 of 9 caught</span><span class="sub" id="tile-bugs-sub">1 only by holdout, 3 by nothing</span></div>
+  </div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#new">What's new</a><a href="#bugs">Planted bugs</a><a href="#diagram">Before and after</a><a href="#numbers">Numbers</a><a href="#run">How to run</a><a href="#decisions">Decisions</a><a href="#limits">What didn't work</a><a href="#suggest">For the hand-written files</a><a href="#judges">Explaining this to the judges</a>
+  </nav>
+</header>
+
+<section id="new">
+<h2>What's new, most interesting first</h2>
+
+<h3>1. We tested the tester</h3>
+<p>I made nine copies of the real Sale translation, each with one realistic mistake an AI could make, and ran each one through the real checker on the dev data and on the holdout data. A checker that says PASS to everything is worthless, so this is the strongest evidence we have that ours isn't. Full table <a href="#bugs">below</a>.</p>
+
+<h3>2. "Which columns can never match?" is now answered by evidence</h3>
+<p><code>migrator/probe.py</code> stages the input once, then runs the legacy job twice, each time inside a transaction that gets rolled back. Both runs start from identical tables, so any column that comes out different was not decided by the input. It found exactly what we'd guessed by hand for Sale, plus one more for City:</p>
+<div class="wide"><table>
+<thead><tr><th>Job</th><th>Table</th><th>Column that differs between two legacy runs</th><th>Why (recorded in jobs/evidence/)</th></tr></thead>
+<tbody>
+<tr><td>Sale</td><td><code>Fact.Sale</code></td><td><code>Sale Key</code></td><td>Identity column. Run 1 numbered new rows from 228,266, run 2 from 233,490: a rollback doesn't hand numbers back.</td></tr>
+<tr><td>Sale, City, Movement</td><td><code>Integration.Lineage</code></td><td><code>Data Load Completed</code></td><td><code>SYSDATETIME()</code>: the clock moved between runs.</td></tr>
+<tr><td>City</td><td><code>Dimension.City</code></td><td><code>City Key</code></td><td>Identity column, same as Sale Key.</td></tr>
+<tr><td>Movement</td><td><code>Fact.Movement</code></td><td>none</td><td>The MERGE only updated existing rows in this window, so the identity never fired.</td></tr>
+</tbody></table></div>
+<p>A technical judge will ask "how do you know you're not hiding a bug by ignoring a column?". The answer is now a file with example values from both runs.</p>
+
+<h3>3. Ignoring a column no longer makes the checker blind to it</h3>
+<p>Leaving <code>Data Load Completed</code> out of the comparison would let a translation scribble over that column on every row and still pass. So <code>migrator/check.py</code> runs three checks per table, and all of them go through the owner's <code>diff.reconcile</code>:</p>
+<ol>
+  <li><b>Whole rows.</b> Every column must match, except that an ignored column is reduced to "filled in or empty". So it must still be filled on exactly the same rows as the legacy output.</li>
+  <li><b>Untouched rows.</b> Rows the legacy job didn't change must come out of Spark identical in every column, ignored ones included. Only rows the job really wrote get a pass on their ID number.</li>
+  <li><b>Unique key.</b> The Spark output must not repeat a primary key value (SQL Server would refuse such a table).</li>
+</ol>
+<p>This paid off right away. Movement's translation passed check 1 on <code>Integration.Lineage</code>. Check 2 caught that it had changed the type of <code>Data Load Completed</code> on all 13 rows the legacy job never touched.</p>
+
+<h3>4. Point it at a procedure and it finds the tables itself</h3>
+<p>The hard-coded <code>JOBS</code> dict is gone. A job is now a small JSON file (<code>jobs/sale.json</code> is four lines). <code>migrator/discover.py</code> asks SQL Server's own dependency metadata (<code>sys.dm_sql_referenced_entities</code>, following any procedures it calls) which tables a procedure touches and which it writes. It reads key columns from primary keys and unique indexes. For Sale it finds the same 8 tables as the old hand-written list:</p>
+<pre>$ python migrator/discover.py sale
+Integration.MigrateStagedSaleData
+
+   table                        writes  key columns                      identity
+   Fact.Sale                    yes     Sale Key, Invoice Date Key       Sale Key
+   Integration.Lineage          yes     Lineage Key
+   Integration.Sale_Staging     yes     Sale Staging Key                 Sale Staging Key
+   Integration.[ETL Cutoff]     yes     Table Name
+   Dimension.City                       City Key
+   Dimension.Customer                   Customer Key
+   Dimension.Employee                   Employee Key
+   Dimension.[Stock Item]               Stock Item Key
+same set as the hand-written list: True</pre>
+<p>For an online bookstore, the spec would be the database name, the procedure name, the <code>.sql</code> file and a staging script. Tables, keys and never-matching columns all come from the database.</p>
+
+<h3>5. A holdout window picked from the data, not "the previous month"</h3>
+<p><code>scripts/holdout_stats.sql</code> replays every sale in the shop through the procedure's dimension lookups, plus four wrong versions of the lookup, and counts per month where the answers would differ. What it showed:</p>
+<ul>
+  <li>Every month already exposes <i>NULL instead of 0</i> and <i>missing Valid To</i>. The dev window catches those on its own.</li>
+  <li>The numbers looked as if every month from mid-2013 on would also catch a <i>reversed TOP(1)</i>. The planted-bug run showed otherwise: every one of those cases is a tie (see below).</li>
+  <li><code>&gt;=</code> instead of <code>&gt;</code> changes the answer in <b>no month at all</b>, because no sale timestamp ever equals the start of a dimension version. No window of real data can catch that bug.</li>
+  <li>The dev window has <b>0</b> sales within 14 days after a city version change. July 2015 has <b>623</b>, right after 13 states and 18 countries changed on 2015-07-01.</li>
+  <li>The dev window ends exactly at the current ETL cutoff, so the job "updates" the cutoff to the value it already had. A translation that forgets that step looks perfect on dev.</li>
+</ul>
+<p>So the holdout is <b>2015-06-20 to 2015-07-20</b>: 6,143 lines from 1,911 invoices. It lives in <code>jobs/sale_holdout.json</code>, which only changes the staging window.</p>
+<div class="wide"><table>
+<thead><tr><th>Window</th><th class="num">Lines</th><th class="num">Invoices</th><th class="num">Sales ≤14 days after a city change</th><th class="num">Sales on a later city version</th><th class="num">No delivery date yet</th><th>ETL cutoff moves?</th></tr></thead>
+<tbody>
+<tr><td>dev: 2016-05-06 → 2016-06-06</td><td class="num">5,224</td><td class="num">1,604</td><td class="num">0</td><td class="num">3,959</td><td class="num">284</td><td>no</td></tr>
+<tr><td><b>holdout: 2015-06-20 → 2015-07-20</b></td><td class="num">6,143</td><td class="num">1,911</td><td class="num">623</td><td class="num">4,480</td><td class="num">0</td><td>yes</td></tr>
+<tr><td>also measured: 2014-06-20 → 2014-07-20</td><td class="num">5,983</td><td class="num">1,857</td><td class="num">896</td><td class="num">3,610</td><td class="num">0</td><td>yes</td></tr>
+</tbody></table></div>
+<p class="meta">2014 had a few more sales near a change, but 2015 has more sales landing on later versions and the bigger geography change, so a wrong version pick shows up on more rows. The dev window covers undelivered invoices, which the holdout doesn't, so the two complement each other.</p>
+
+<h3>6. One command to a ready bench</h3>
+<p><code>scripts/bench.sh</code> takes a fresh machine to a working bench. It starts Docker, writes a <code>.env</code> with a random password, starts SQL Server and waits until it answers, downloads both backups and checks their SHA-256, restores them, installs ODBC Driver 18, makes the venv from the new pinned <code>requirements.txt</code>, then proves Python can connect. It is safe to rerun. I tested it by deleting the container, its volume, <code>.env</code>, <code>.venv</code>, the ODBC driver and the download cache: it rebuilt everything in <b>43 seconds</b> (the SQL Server image was already pulled; pulling it took another 27 s).</p>
+</section>
+
+<section id="bugs">
+<h2>Planted bugs: does the checker have teeth?</h2>
+<p>Each row is a copy of <code>jobs_pyspark/sale.py</code> with exactly one change (<code>scripts/make_planted_bugs.py</code> makes them, into <code>experiments/planted_bugs/</code>). Each one ran through <code>run_spark.py</code> and the real checker on both datasets. Raw results: <code>docs/reports/data/planted_bugs.json</code>.</p>
+<div class="callout good"><p><b>6 of 9 planted bugs caught.</b> 5 on the dev data, 1 only by the holdout, 3 by nothing. The real translation: passes both, as it should.</p></div><div class="wide"><table><thead><tr><th>Planted bug</th><th>Dev data</th><th>Holdout data</th><th>Outcome</th><th>Why</th></tr></thead><tbody><tr><td><code>real_translation</code><br><span class="meta">the real AI translation, no planted bug</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill pass">passes both, as it should</span></td><td>Control. Must pass both, or the checker cries wolf.</td></tr><tr><td><code>changed_rows_only</code><br><span class="meta">Fact.Sale returns only the inserted rows, not the whole table</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale</span></td><td><span class="pill pass">caught by dev</span></td><td>Fact.Sale shrinks from 228,265 rows to the few thousand reloaded ones.</td></tr><tr><td><code>default_decimal</code><br><span class="meta">Money columns cast with Spark&#x27;s default decimal(10,0), losing the cents</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale</span></td><td><span class="pill pass">caught by dev</span></td><td>39,717 sale lines have cents in the unit price; decimal(10,0) rounds them away.</td></tr><tr><td><code>no_delete</code><br><span class="meta">Old lines of reloaded invoices are not deleted before the new ones are inserted</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale</span></td><td><span class="pill pass">caught by dev</span></td><td>Reloaded invoices appear twice: old lines plus new ones.</td></tr><tr><td><code>no_valid_to</code><br><span class="meta">Dimension lookups forget the [Valid To] condition</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale, Integration.Sale_Staging</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale, Integration.Sale_Staging</span></td><td><span class="pill pass">caught by dev</span></td><td>Picks a customer's or product's oldest version instead of the one valid at sale time.</td></tr><tr><td><code>null_not_zero</code><br><span class="meta">No matching dimension row gives NULL instead of 0 (COALESCE dropped)</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale, Integration.Sale_Staging</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Fact.Sale, Integration.Sale_Staging</span></td><td><span class="pill pass">caught by dev</span></td><td>Thousands of lookups find no dimension row in every window, so NULLs show up straight away.</td></tr><tr><td><code>forget_cutoff</code><br><span class="meta">The Integration.[ETL Cutoff] update is left out</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill fail">FAIL</span> <span class="meta">Integration.ETL Cutoff</span></td><td><span class="pill warn">caught only by holdout</span></td><td>On dev the job sets the cutoff to the value it already had, so skipping the update looks perfect. The holdout window moves the cutoff.</td></tr><tr><td><code>ge_valid_from</code><br><span class="meta">Dimension lookups use &gt;= instead of &gt; on [Valid From]</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill fail">caught by nothing</span></td><td>No sale is stamped exactly at a version start, so <code>&gt;=</code> and <code>&gt;</code> always agree on this data (holdout_stats.sql: 0 lines in every month). <b>Would catch it:</b> a small boundary dataset with a sale at exactly a <code>Valid From</code>.</td></tr><tr><td><code>tax_rate_scale</code><br><span class="meta">Tax Rate written as decimal(18,2) instead of decimal(18,3)</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill fail">caught by nothing</span></td><td>Every tax rate is 15.000 or 10.000, and Python compares 15.000 == 15.00 as equal, so values match. <b>Would catch it:</b> comparing column types between after/ and spark/.</td></tr><tr><td><code>top1_desc</code><br><span class="meta">TOP(1) ... ORDER BY [Valid From] taken in the wrong order (newest first)</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill pass">PASS</span></td><td><span class="pill fail">caught by nothing</span></td><td>776 dev lookups match two City versions, but in every case both have the <b>same</b> <code>Valid From</code> (a tie), and real version histories never overlap otherwise. So reversing the date order can never change a result here. <b>Would catch it:</b> only a dimension with overlapping date ranges, which is broken data.</td></tr></tbody></table></div>
+</section>
+
+<section id="diagram">
+<h2>Before and after</h2>
+<div class="two">
+<figure>
+<svg viewBox="0 0 460 330" role="img" aria-label="Before: Mac only, hand-written table list, one table compared">
+  <text x="0" y="16" class="tag">BEFORE · THE OWNER'S MAC ONLY</text>
+  <rect class="box" x="0" y="34" width="200" height="54" rx="6"/>
+  <text x="12" y="56" class="label">run_legacy.py</text>
+  <text x="12" y="74" class="small">JOBS dict: 8 tables by hand</text>
+  <rect class="box" x="250" y="34" width="200" height="54" rx="6"/>
+  <text x="262" y="56" class="label">translate.py → sale.py</text>
+  <text x="262" y="74" class="small">claude -p, prompt only</text>
+  <rect class="box" x="0" y="130" width="200" height="54" rx="6"/>
+  <text x="12" y="152" class="label">before/  after/</text>
+  <text x="12" y="170" class="small">one dev window</text>
+  <rect class="box" x="250" y="130" width="200" height="54" rx="6"/>
+  <text x="262" y="152" class="label">run_spark.py → spark/</text>
+  <rect class="box-warn" x="100" y="232" width="260" height="62" rx="6"/>
+  <text x="112" y="256" class="label">diff.py __main__</text>
+  <text x="112" y="274" class="small">compares 1 of 4 written tables</text>
+  <text x="112" y="288" class="small">(Sale_Staging); others unchecked</text>
+  <path class="line" d="M100 88 V130"/><path class="arrow" d="M95 122 L100 130 L105 122Z"/>
+  <path class="line" d="M350 88 V130"/><path class="arrow" d="M345 122 L350 130 L355 122Z"/>
+  <path class="line" d="M200 157 H250"/><path class="arrow" d="M242 152 L250 157 L242 162Z"/>
+  <path class="line" d="M100 184 V210 H180 V232"/><path class="arrow" d="M175 224 L180 232 L185 224Z"/>
+  <path class="line" d="M350 184 V210 H280 V232"/><path class="arrow" d="M275 224 L280 232 L285 224Z"/>
+</svg>
+<figcaption>Before. Everything worked, but only on one laptop, only for Sale, and the verdict covered one table.</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 460 470" role="img" aria-label="After: job spec, discovery, probe, dev and holdout datasets, three-part check">
+  <text x="0" y="16" class="tag">AFTER · ANY MACHINE: scripts/bench.sh</text>
+  <rect class="box-accent" x="0" y="30" width="140" height="48" rx="6"/>
+  <text x="10" y="50" class="label">jobs/sale.json</text>
+  <text x="10" y="67" class="small">proc + staging script</text>
+  <rect class="box-accent" x="160" y="30" width="140" height="48" rx="6"/>
+  <text x="170" y="50" class="label">discover.py</text>
+  <text x="170" y="67" class="small">tables, keys, identity</text>
+  <rect class="box-accent" x="320" y="30" width="140" height="48" rx="6"/>
+  <text x="330" y="50" class="label">probe.py</text>
+  <text x="330" y="67" class="small">run legacy twice</text>
+  <path class="line" d="M140 54 H160"/><path class="arrow" d="M152 49 L160 54 L152 59Z"/>
+  <path class="line" d="M300 54 H320"/><path class="arrow" d="M312 49 L320 54 L312 59Z"/>
+  <rect class="box" x="320" y="100" width="140" height="40" rx="6"/>
+  <text x="330" y="124" class="small">jobs/evidence/*.json</text>
+  <path class="line" d="M390 78 V100"/><path class="arrow" d="M385 92 L390 100 L395 92Z"/>
+  <rect class="box" x="0" y="120" width="140" height="56" rx="6"/>
+  <text x="10" y="141" class="label">run_legacy.py</text>
+  <text x="10" y="158" class="small">dev window</text>
+  <rect class="box" x="160" y="120" width="140" height="56" rx="6"/>
+  <text x="170" y="141" class="label">run_legacy.py</text>
+  <text x="170" y="158" class="small">holdout window</text>
+  <path class="line" d="M70 78 V120"/><path class="arrow" d="M65 112 L70 120 L75 112Z"/>
+  <path class="line" d="M70 98 H230 V120"/><path class="arrow" d="M225 112 L230 120 L235 112Z"/>
+  <rect class="box" x="0" y="206" width="140" height="44" rx="6"/>
+  <text x="10" y="226" class="label">sale/ before after</text>
+  <text x="10" y="241" class="small">AI may see before/</text>
+  <rect class="box-fail" x="160" y="206" width="140" height="44" rx="6"/>
+  <text x="170" y="226" class="label">sale_holdout/</text>
+  <text x="170" y="241" class="small">never reaches the AI</text>
+  <path class="line" d="M70 176 V206"/><path class="arrow" d="M65 198 L70 206 L75 198Z"/>
+  <path class="line" d="M230 176 V206"/><path class="arrow" d="M225 198 L230 206 L235 198Z"/>
+  <rect class="box" x="320" y="206" width="140" height="44" rx="6"/>
+  <text x="330" y="226" class="label">translate.py</text>
+  <text x="330" y="241" class="small">→ jobs_pyspark/*.py</text>
+  <path class="line" d="M140 228 H150 V190 H390 V206"/><path class="arrow" d="M385 198 L390 206 L395 198Z"/>
+  <text x="240" y="185" class="small">table layouts only</text>
+  <rect class="box" x="80" y="282" width="300" height="44" rx="6"/>
+  <text x="92" y="302" class="label">run_spark.py</text>
+  <text x="92" y="318" class="small">same .py on dev and holdout input</text>
+  <path class="line" d="M70 250 V266 H150 V282"/><path class="arrow" d="M145 274 L150 282 L155 274Z"/>
+  <path class="line" d="M230 250 V282"/><path class="arrow" d="M225 274 L230 282 L235 274Z"/>
+  <path class="line" d="M390 250 V266 H330 V282"/><path class="arrow" d="M325 274 L330 282 L335 274Z"/>
+  <rect class="box-pass" x="40" y="356" width="380" height="76" rx="6"/>
+  <text x="52" y="378" class="label">check.py → diff.reconcile, every table</text>
+  <text x="52" y="396" class="small">1 whole rows (ignored cols: filled vs empty)</text>
+  <text x="52" y="411" class="small">2 untouched rows, every column   3 unique key</text>
+  <text x="52" y="426" class="small">ignored columns come only from evidence/</text>
+  <path class="line" d="M230 326 V356"/><path class="arrow" d="M225 348 L230 356 L235 348Z"/>
+  <path class="line" d="M450 140 V394 H420"/><path class="arrow" d="M428 389 L420 394 L428 399Z"/>
+  <text x="230" y="458" class="small" text-anchor="middle">→ check.json per job → docs/reports/data/results.json</text>
+</svg>
+<figcaption>After. The spec names the procedure. Discovery and the probe fill in the rest. The same translation runs on two windows, and holdout results are only ever read by the checker.</figcaption>
+</figure>
+</div>
+</section>
+
+<section id="numbers">
+<h2>Real numbers from this bench</h2>
+<p class="meta">SQL Server 2022 (16.0.4305.5, Developer) in Docker on x86_64, 4 CPUs, 16 GB. PySpark 4.2.1 in local mode on Java 21, Python 3.10.20.</p>
+<div class="wide"><table>
+<thead><tr><th>Job</th><th>Data</th><th>Verdict</th><th class="num">Rows staged</th><th class="num">Fact rows</th><th class="num">Rows the job changed</th><th class="num">Legacy procedure</th><th class="num">Spark job + write</th><th class="num">Spark incl. startup</th></tr></thead>
+<tbody>
+<tr><td>Sale</td><td>dev</td><td><span class="pill pass">PASS 8/8</span></td><td class="num">5,224</td><td class="num">228,265</td><td class="num">5,224 + 5,224 + 1</td><td class="num">1.18 s</td><td class="num">11.2 s</td><td class="num">21.9 s</td></tr>
+<tr><td>Sale</td><td>holdout</td><td><span class="pill pass">PASS 8/8</span></td><td class="num">6,143</td><td class="num">228,265</td><td class="num">6,143 + 6,143 + 1 + 1</td><td class="num">1.75 s</td><td class="num">10.3 s</td><td class="num">20.5 s</td></tr>
+<tr><td>City</td><td>dev (Jun–Jul 2015)</td><td><span class="pill pass">PASS 4/4</span></td><td class="num">9,628</td><td class="num">116,295 → 125,923</td><td class="num">19,256 + 1 + 1</td><td class="num">0.51 s</td><td class="num">5.5 s</td><td class="num">14.9 s</td></tr>
+<tr><td>Movement</td><td>dev</td><td><span class="pill fail">FAIL 6/8</span></td><td class="num">5,053</td><td class="num">236,667</td><td class="num">5,053 + 5,053 + 1</td><td class="num">0.74 s</td><td class="num">13.9 s</td><td class="num">24.5 s</td></tr>
+</tbody></table></div>
+<p>"Rows the job changed" counts rows in the legacy output with no identical twin in the input: fact rows, staging rows, then the Lineage row and the ETL Cutoff row where they changed.</p>
+<p><b>Speed, said plainly:</b> on this size of data the old SQL Server procedure is about 10 times faster than Spark on one machine. Spark pays for starting a JVM, planning, and writing every table back out, including the 116,295-row <code>Dimension.City</code> it never changed. That's normal for Spark on small data. Don't pitch speed. The pitch is that the migration is proven correct, and Spark is where the client wants to be for scale.</p>
+
+<h3>The full Sale verdict (dev)</h3>
+<pre>$ python migrator/check.py sale
+
+sale: PASS
+
+   table                        verdict      rows  changed  notes
+   Dimension.City               PASS       116295        0
+   Dimension.Customer           PASS          403        0
+   Dimension.Employee           PASS          213        0
+   Dimension.Stock Item         PASS          672        0
+   Fact.Sale                    PASS       228265     5224  ignored: Sale Key
+   Integration.ETL Cutoff       PASS           14        0
+   Integration.Lineage          PASS           28        1  ignored: Data Load Completed
+   Integration.Sale_Staging     PASS         5224     5224</pre>
+<p>Fact.Sale at first failed 5,223 of 5,224 new rows, because I compared <code>Sale Key</code>. SQL Server numbers the inserted rows in whatever order it scans the in-memory staging table. Key 228,266 went to invoice 68,932 in SQL Server, while Spark numbered them by staging key, so 228,266 went to invoice 68,907. Neither order is "right", and the probe confirmed the column changes between two legacy runs. With <code>Sale Key</code> handled by the three checks above, all 228,265 rows match, and the 223,041 rows the job didn't touch match exactly, <code>Sale Key</code> included.</p>
+<p>A do-nothing job (<code>jobs_pyspark/noop.py</code>) fails on Fact.Sale, Lineage and Sale_Staging, as it should. ETL Cutoff passes it on dev, which is the dev-window weakness the holdout fixes.</p>
+
+<h3>City and Movement, first attempt, unedited</h3>
+<p>I moved every <code>after/</code> and <code>probe/</code> folder out to <code>/tmp/answer-keys/</code>, ran the owner's <code>translate.py</code> once per job (20 s and 39 s), put the folders back, and ran Spark and the checker. No retries, no edits.</p>
+<pre>movement: FAIL
+
+   table                        verdict      rows  changed  notes
+   Fact.Movement                PASS       236667     5053
+   Integration.ETL Cutoff       FAIL           14        0  whole_rows failed (14 legacy rows and 14 spark rows unmatched: Cutoff Time)
+   Integration.Lineage          FAIL           16        1  untouched_rows failed (13 legacy rows and 0 spark rows unmatched)
+   Integration.Movement_Staging PASS         5053     5053
+   (the four Dimension tables pass)</pre>
+<p>The MERGE itself is right: all 5,053 updated movement rows match. The failure is one realistic mistake. The code casts timestamps with <code>.cast("timestamp")</code>, which in Spark means "a moment in time, with a time zone". SQL Server's <code>datetime2</code> has no time zone (Spark calls that <code>timestamp_ntz</code>). The values are the same moment, but the column changed type: <code>2016-06-06 12:31:17</code> came back as <code>2016-06-06 12:31:17+00:00</code>. A downstream report would now apply time zone rules to it, so I count it as a real failure. That's exactly the kind of thing <code>loop.py</code> should feed back. The Sale translation avoided it by casting to the input column's own type.</p>
+</section>
+
+<section id="run">
+<h2>How to run it on the Mac</h2>
+<p>From the repo folder, one line at a time. If the bench is already set up, start at step 2.</p>
+<pre class="cmd">git fetch origin && git checkout claude/test-bench</pre>
+<p>1. Set up (safe to rerun; it skips whatever is already done). On the Mac it uses your existing <code>.env</code> and stops with the brew steps if ODBC Driver 18 is missing:</p>
+<pre class="cmd">scripts/bench.sh</pre>
+<pre class="cmd">source .venv/bin/activate</pre>
+<p>2. Sale, dev data (your existing workflow, unchanged):</p>
+<pre class="cmd">python migrator/run_legacy.py sale</pre>
+<pre class="cmd">python migrator/run_spark.py sale jobs_pyspark/sale.py</pre>
+<pre class="cmd">python migrator/check.py sale</pre>
+<p>3. Find the never-matching columns from evidence (writes <code>jobs/evidence/sale.json</code>; already committed for all four jobs):</p>
+<pre class="cmd">python migrator/probe.py sale</pre>
+<p>4. Holdout (same translation, a window it never saw):</p>
+<pre class="cmd">python migrator/run_legacy.py sale_holdout</pre>
+<pre class="cmd">python migrator/run_spark.py sale_holdout jobs_pyspark/sale.py</pre>
+<pre class="cmd">python migrator/check.py sale_holdout</pre>
+<p>5. City and Movement (swap the name):</p>
+<pre class="cmd">python migrator/run_legacy.py city</pre>
+<pre class="cmd">python migrator/run_spark.py city jobs_pyspark/city.py</pre>
+<pre class="cmd">python migrator/check.py city</pre>
+<p>6. Planted bugs (about 15 minutes, needs step 2 and 4 first), then gather everything into one JSON file:</p>
+<pre class="cmd">python scripts/make_planted_bugs.py</pre>
+<pre class="cmd">python scripts/run_planted_bugs.py</pre>
+<pre class="cmd">python scripts/collect_results.py</pre>
+<p>See what a procedure touches, without running anything:</p>
+<pre class="cmd">python migrator/discover.py movement</pre>
+<p class="meta">Check your Mac's versions match <code>requirements.txt</code> (<code>pip freeze</code>). PySpark 4 needs Java 17 or 21. If you were on PySpark 3.5, the pin is a change, so rerun <code>sale.py</code> once to confirm it still passes there.</p>
+</section>
+
+<section id="decisions">
+<h2>Decisions and why</h2>
+<ul>
+  <li><b>Never ignore a column without evidence.</b> The ignore list comes from <code>probe.py</code>'s two runs, not from a guess, and every entry carries a reason and example values. <code>sale.json</code> no longer lists any by hand.</li>
+  <li><b>Ignored still means checked.</b> Masking to "filled or empty" plus the untouched-rows check means the only freedom a translation gets is the exact value of a column on the rows the legacy job really wrote. Ignoring outright would have passed Movement's Lineage table.</li>
+  <li><b>All tables, not just the written ones.</b> The read-only dimension tables are compared too. It costs seconds and proves the translation didn't touch them.</li>
+  <li><b>The verdict stays in <code>diff.reconcile</code>.</b> <code>check.py</code> only chooses which rows and columns to hand it. I didn't edit <code>diff.py</code>, <code>translate.py</code> or create <code>loop.py</code>.</li>
+  <li><b>Staging window through SQL Server's session context.</b> The staging scripts read <code>SESSION_CONTEXT(N'window_from')</code> and fall back to today's default. This keeps the scripts runnable by hand in any SQL tool, with no text templating.</li>
+  <li><b>City gets a 2015 window.</b> The default month has zero city changes, so <code>City_Staging</code> would be empty and any translation would pass. A test that can't fail proves nothing.</li>
+  <li><b>JSON specs with <code>extends</code>.</b> Python 3.10 has no <code>tomllib</code>. <code>sale_holdout.json</code> is just "sale, with another window", so the two can't drift apart.</li>
+  <li><b>PySpark 4.2.1, Python 3.10, Java 21.</b> 3.10 matches the Mac. PySpark 4 turns on ANSI mode by default, which raises errors on overflow and bad casts the way SQL Server does, instead of quietly returning NULL.</li>
+  <li><b>Mutants as committed files plus a generator.</b> You can read each planted bug as a normal file, and the generator refuses to run if <code>sale.py</code> changes under it.</li>
+  <li><b>Backup checksums are pinned by us.</b> Microsoft doesn't publish SHA-256 values for these files, so <code>bench.sh</code> pins the ones from today's download. They catch a broken or swapped download. They don't prove the file is Microsoft's.</li>
+</ul>
+</section>
+
+<section id="limits">
+<h2>What didn't work, the limits, and what's left</h2>
+<ul>
+  <li><b>Three planted bugs got through</b>, and each one teaches something. <b>Reversed TOP(1)</b> can't change a result on a well-formed history: date ranges never overlap, so at most one version is valid at any moment. The only multi-matches (776 dev lookups) are ties with the same <code>Valid From</code>. <b>That points at a real risk:</b> the legacy <code>TOP(1) ORDER BY [Valid From]</code> doesn't say which tied row wins. SQL Server picked the lowest key all 776 times, and the translation matches only because it also breaks ties on the lowest key. A different query plan on the legacy side could flip it. A planted tie-break bug (highest key wins) would be caught on dev, and the probe can't see it because both runs use the same plan. The other two: <code>&gt;=</code> instead of <code>&gt;</code> never changes a result because no sale timestamp equals a dimension version start in this data (measured over all 228,265 sales). A tiny hand-made boundary dataset would catch it: one sale stamped exactly at a <code>Valid From</code>. The decimal-scale bug is invisible because <code>diff.reconcile</code> compares values, and Python treats <code>15.000</code> and <code>15.00</code> as equal. A schema check (compare column types between <code>after/</code> and <code>spark/</code>) would catch it, and would also have explained the Movement failure in one line.</li>
+  <li><b>A staging error I saw twice and couldn't reproduce.</b> Right after adding the window parameter, Sale staging failed twice in a row with SQL Server error 41317 (a transaction touching an in-memory table can't reach a second database). The unmodified script failed the same way, so it wasn't the change. After I emptied <code>Sale_Staging</code> by hand it went away, and 8 more attempts in every order worked. If it shows up on the Mac, empty the table and rerun: <code>DELETE FROM Integration.Sale_Staging</code>.</li>
+  <li><b>Movement's MERGE only took the "update" branch.</b> Every movement in the window already exists in <code>Fact.Movement</code>, so the "insert" branch never ran. A holdout for Movement should include transactions the warehouse hasn't seen.</li>
+  <li><b>One guess in the Movement loader.</b> The shop extract returns <code>[Transaction Occurred When]</code> and the staging column is <code>[Last Modifed When]</code> (Microsoft's typo). It's the only date-time column, so the SSIS package must map one onto the other, but I couldn't open the package to confirm.</li>
+  <li><b>Only Sale has a holdout.</b> City and Movement have dev data only.</li>
+  <li><b>Each staging load leaves a Lineage row behind</b> (it runs outside the rolled-back transaction, as before). Harmless, but <code>Integration.Lineage</code> grows by one per run or probe. A <code>bench.sh --reset</code> restores the warehouse.</li>
+  <li><b>"Modified again" invoices don't exist in this data.</b> I looked for invoices edited more than a day after the invoice date and found none, so that case stays untested.</li>
+  <li><b>The holdout snapshots live inside the repo folder</b> (<code>snapshots/sale_holdout/</code>, gitignored). Nothing sends them to the AI, but see the translate.py suggestion below.</li>
+  <li><b>Not done:</b> <code>loop.py</code> (owner's), a holdout for City and Movement, the schema check, lineage, and the review app (sibling branch).</li>
+</ul>
+</section>
+
+<section id="suggest">
+<h2>Suggestions for the hand-written files</h2>
+<p>I didn't touch these. Here's what I'd change and why.</p>
+<h3><code>translate.py</code></h3>
+<ul>
+  <li><b>Turn the AI's tools off.</b> It already runs <code>claude</code> in an empty temp folder, which is good. But the temp folder only changes where it starts. Whether it can still read <code>/Users/.../LegacyMigrator/snapshots/</code> by full path depends on your local permission settings. I tested both here: plain <code>claude -p</code> was blocked by this machine's default permissions, and <code>claude -p --tools ""</code> has no file access at all, whatever the settings. The prompt already contains everything it needs, so the fix is one argument: <code>subprocess.run(["claude", "-p", "--tools", ""], ...)</code>.</li>
+  <li><b>Describe columns in Spark's words.</b> <code>describe_tables</code> prints Arrow types like <code>timestamp[us]</code>. Saying <code>timestamp_ntz</code> (and adding one rule, "cast to the input column's own type") would probably have saved Movement's first attempt.</li>
+  <li>A small typo in the prompt: "froasm the SQL".</li>
+</ul>
+<h3><code>diff.py</code></h3>
+<ul>
+  <li>Consider a column-type comparison next to <code>compare_rows</code>. It's the one class of bug the planted-bug test shows it can't see.</li>
+  <li>If you want the "filled or empty" and "untouched rows" ideas inside <code>reconcile</code> itself, they're about 20 lines in <code>check.py</code> (<code>mask</code> and <code>untouched</code>). Moving them over by hand is yours to decide.</li>
+</ul>
+<h3><code>loop.py</code> (when you write it)</h3>
+<ul>
+  <li>Feed back only <code>snapshots/&lt;dev job&gt;/check.json</code>. Never run <code>check.py sale_holdout</code> inside the loop, only after it has finished.</li>
+  <li>Movement is a ready-made first test case: one clear failure, two tables, and the explanation is in <code>check.json</code>.</li>
+</ul>
+</section>
+
+<section id="judges">
+<h2>Explaining this to the judges</h2>
+<p class="meta">For the teammate. Plain words, no Spark or warehouse knowledge needed.</p>
+
+<h3>The one-sentence version</h3>
+<p>The AI rewrites an old program in a new language, and then we run the old and the new program on the same data and check every single row of output matches. The AI never gets to mark its own homework.</p>
+
+<h3>What's an "answer key"?</h3>
+<p>Before we let the AI near anything, we run the company's old program and save exactly what it produced. That saved output is the answer key. The AI's version gets the same input, and its output is compared to the key, row by row, column by column. Sale has 228,265 rows in its main table. All of them match.</p>
+
+<h3>"But some numbers will always be different"</h3>
+<p>True, and a judge may ask. Two examples:</p>
+<ul>
+  <li><b>A timestamp</b> saying when the job ran. Run it at 9:00 and again at 9:01 and you get different answers, so no translation could ever match it.</li>
+  <li><b>A ticket number</b>. The old database hands out the next free number to each new row, like a deli counter, and it never gives a number back. Run the job twice and the second run gets new tickets.</li>
+</ul>
+<p>We don't guess which columns are like this. We run the old program twice on identical input and see which columns change by themselves. Only those get a pass, and we still check they're filled in, and that old rows keep their original ticket numbers.</p>
+
+<h3>"How do you know the checker actually works?"</h3>
+<p>We broke the AI's working code on purpose, nine different ways, each a mistake an AI could plausibly make, like picking a customer's old address instead of their current one, or forgetting to delete old copies before adding new ones. Then we asked the checker. <span id="judges-bugs">It caught 6 of the 9.</span> For the three it missed, we know exactly why and what would catch them, and we say so. One of them turned out to be a bug that can't change the result on real data at all. A tool that tells you where its own blind spots are is easier to trust than one that claims to be perfect.</p>
+
+<h3>"Couldn't the AI just learn the test?"</h3>
+<p>That's what the <b>holdout</b> is for. We keep a second batch of real data, a different month, that the AI never sees: not in its instructions and not in any error message. A translation that only passes the data it practised on would fail here. We picked that month on purpose. It's right after a big change to the company's list of countries and regions, when mistakes in "which version of the customer's address" would show.</p>
+
+<h3>What the AI got right, and wrong, on the first try</h3>
+<ul>
+  <li><b>Sale</b> (match every sale to the right customer, product, city and salesperson, then reload the sales table): <span class="pass">correct</span> on both batches of data.</li>
+  <li><b>City</b> (keep a history of each city's details over time): <span class="pass">correct</span> first time.</li>
+  <li><b>Movement</b> (stock moving in and out): the main logic was <span class="pass">correct</span>, but it stored two date columns in a slightly different format, with a time zone added. Our checker <span class="fail">caught it</span>. That's the point: it would have slipped past a human skimming the output.</li>
+</ul>
+
+<h3>The honest limit</h3>
+<p>"Pass" means the old and new programs agreed on every row of every dataset we tried. It isn't a mathematical proof, which is impossible in general for programs like these. That's why we recommend running both side by side on real data for a while before switching the old one off.</p>
+
+<h3>If a technical judge pokes</h3>
+<ul>
+  <li><i>How do you know which tables a job touches?</i> We ask the database. It keeps a record of what every stored procedure reads and writes.</li>
+  <li><i>Is the database changed by your tests?</i> No. The old job runs inside a transaction that's undone afterwards.</li>
+  <li><i>Can anyone reproduce this?</i> One command, <code>scripts/bench.sh</code>, builds the whole setup from nothing in under a minute plus downloads.</li>
+</ul>
+</section>
+</main>

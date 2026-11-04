@@ -9,7 +9,8 @@
 --   no_match       some lookup finds nothing, so the key is 0       (catches NULL-instead-of-0)
 --   ge_differs     ">=" on Valid From picks a different key          (catches >= instead of >)
 --   no_to_differs  dropping the Valid To condition changes the key   (catches a missing Valid To)
---   desc_differs   ORDER BY [Valid From] DESC changes the key        (catches a reversed TOP(1))
+--   desc_differs   ORDER BY [Valid From] DESC changes the key. In this data every such case is a tie:
+--                  two versions with the SAME [Valid From], so it measures SQL Server's tie-break, not the date order.
 --   split_invoices invoices whose lines fall in different months, so a window holds only part of them
 SET NOCOUNT ON;
 

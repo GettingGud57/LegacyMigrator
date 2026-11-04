@@ -1,0 +1,1571 @@
+{
+  "generated_at": "2026-11-04T21:45:52Z",
+  "sample": false,
+  "notes": [
+    "Real runs on the cloud test bench (SQL Server 2022 in Docker, PySpark local mode).",
+    "City and Movement are first-attempt AI translations, unedited."
+  ],
+  "runs": [
+    {
+      "job": "sale",
+      "dataset": "dev",
+      "snapshot": "sale",
+      "ai_can_see": true,
+      "proc": "Integration.MigrateStagedSaleData",
+      "spark_file": "jobs_pyspark/sale.py",
+      "status": "pass",
+      "staging_window": "default: the month up to the ETL cutoff",
+      "legacy_proc_seconds": 1.177,
+      "spark_job_seconds": 11.238,
+      "spark_total_seconds": 21.853,
+      "tables_found_by_metadata": [
+        {
+          "table": "Fact.Sale",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Integration.Lineage",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Integration.Sale_Staging",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Integration.[ETL Cutoff]",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.City",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.Customer",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.Employee",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.[Stock Item]",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        }
+      ],
+      "probe": {
+        "method": "staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table",
+        "probed_at": "2026-11-04 21:20:50"
+      },
+      "tables": [
+        {
+          "table": "Dimension.City",
+          "status": "pass",
+          "key_cols": [
+            "City Key"
+          ],
+          "ignored": [],
+          "rows_before": 116295,
+          "rows_legacy": 116295,
+          "rows_spark": 116295,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "City",
+            "City Key",
+            "Continent",
+            "Country",
+            "Latest Recorded Population",
+            "Lineage Key",
+            "Location",
+            "Region",
+            "Sales Territory",
+            "State Province",
+            "Subregion",
+            "Valid From",
+            "Valid To",
+            "WWI City ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Customer",
+          "status": "pass",
+          "key_cols": [
+            "Customer Key"
+          ],
+          "ignored": [],
+          "rows_before": 403,
+          "rows_legacy": 403,
+          "rows_spark": 403,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Bill To Customer",
+            "Buying Group",
+            "Category",
+            "Customer",
+            "Customer Key",
+            "Lineage Key",
+            "Postal Code",
+            "Primary Contact",
+            "Valid From",
+            "Valid To",
+            "WWI Customer ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Employee",
+          "status": "pass",
+          "key_cols": [
+            "Employee Key"
+          ],
+          "ignored": [],
+          "rows_before": 213,
+          "rows_legacy": 213,
+          "rows_spark": 213,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Employee",
+            "Employee Key",
+            "Is Salesperson",
+            "Lineage Key",
+            "Photo",
+            "Preferred Name",
+            "Valid From",
+            "Valid To",
+            "WWI Employee ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Stock Item",
+          "status": "pass",
+          "key_cols": [
+            "Stock Item Key"
+          ],
+          "ignored": [],
+          "rows_before": 672,
+          "rows_legacy": 672,
+          "rows_spark": 672,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Barcode",
+            "Brand",
+            "Buying Package",
+            "Color",
+            "Is Chiller Stock",
+            "Lead Time Days",
+            "Lineage Key",
+            "Photo",
+            "Quantity Per Outer",
+            "Recommended Retail Price",
+            "Selling Package",
+            "Size",
+            "Stock Item",
+            "Stock Item Key",
+            "Tax Rate",
+            "Typical Weight Per Unit",
+            "Unit Price",
+            "Valid From",
+            "Valid To",
+            "WWI Stock Item ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Fact.Sale",
+          "status": "pass",
+          "key_cols": [
+            "Sale Key",
+            "Invoice Date Key"
+          ],
+          "ignored": [
+            {
+              "column": "Sale Key",
+              "reason": "identity column: SQL Server gives new rows the next number, and a rollback doesn't hand numbers back, so two runs on the same input get different values"
+            }
+          ],
+          "rows_before": 228265,
+          "rows_legacy": 228265,
+          "rows_spark": 228265,
+          "rows_changed_by_legacy": 5224,
+          "compared_cols": [
+            "Bill To Customer Key",
+            "City Key",
+            "Customer Key",
+            "Delivery Date Key",
+            "Description",
+            "Invoice Date Key",
+            "Lineage Key",
+            "Package",
+            "Profit",
+            "Quantity",
+            "Sale Key",
+            "Salesperson Key",
+            "Stock Item Key",
+            "Tax Amount",
+            "Tax Rate",
+            "Total Chiller Items",
+            "Total Dry Items",
+            "Total Excluding Tax",
+            "Total Including Tax",
+            "Unit Price",
+            "WWI Invoice ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "pass",
+              "rows_only_in_legacy": 0,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_checked": 223041
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.ETL Cutoff",
+          "status": "pass",
+          "key_cols": [
+            "Table Name"
+          ],
+          "ignored": [],
+          "rows_before": 14,
+          "rows_legacy": 14,
+          "rows_spark": 14,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Cutoff Time",
+            "Table Name"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Lineage",
+          "status": "pass",
+          "key_cols": [
+            "Lineage Key"
+          ],
+          "ignored": [
+            {
+              "column": "Data Load Completed",
+              "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+            }
+          ],
+          "rows_before": 28,
+          "rows_legacy": 28,
+          "rows_spark": 28,
+          "rows_changed_by_legacy": 1,
+          "compared_cols": [
+            "Data Load Completed",
+            "Data Load Started",
+            "Lineage Key",
+            "Source System Cutoff Time",
+            "Table Name",
+            "Was Successful"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "pass",
+              "rows_only_in_legacy": 0,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_checked": 27
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Sale_Staging",
+          "status": "pass",
+          "key_cols": [
+            "Sale Staging Key"
+          ],
+          "ignored": [],
+          "rows_before": 5224,
+          "rows_legacy": 5224,
+          "rows_spark": 5224,
+          "rows_changed_by_legacy": 5224,
+          "compared_cols": [
+            "Bill To Customer Key",
+            "City Key",
+            "Customer Key",
+            "Delivery Date Key",
+            "Description",
+            "Invoice Date Key",
+            "Last Modified When",
+            "Package",
+            "Profit",
+            "Quantity",
+            "Sale Staging Key",
+            "Salesperson Key",
+            "Stock Item Key",
+            "Tax Amount",
+            "Tax Rate",
+            "Total Chiller Items",
+            "Total Dry Items",
+            "Total Excluding Tax",
+            "Total Including Tax",
+            "Unit Price",
+            "WWI Bill To Customer ID",
+            "WWI City ID",
+            "WWI Customer ID",
+            "WWI Invoice ID",
+            "WWI Salesperson ID",
+            "WWI Stock Item ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "job": "sale",
+      "dataset": "holdout",
+      "snapshot": "sale_holdout",
+      "ai_can_see": false,
+      "proc": "Integration.MigrateStagedSaleData",
+      "spark_file": "jobs_pyspark/sale.py",
+      "status": "pass",
+      "staging_window": {
+        "window_from": "2015-06-20 00:00:00",
+        "window_to": "2015-07-20 00:00:00"
+      },
+      "legacy_proc_seconds": 1.747,
+      "spark_job_seconds": 10.327,
+      "spark_total_seconds": 20.501,
+      "tables_found_by_metadata": [
+        {
+          "table": "Fact.Sale",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Integration.Lineage",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Integration.Sale_Staging",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Integration.[ETL Cutoff]",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.City",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.Customer",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.Employee",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        },
+        {
+          "table": "Dimension.[Stock Item]",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedSaleData"
+        }
+      ],
+      "probe": {
+        "method": "staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table",
+        "probed_at": "2026-11-04 21:28:31"
+      },
+      "tables": [
+        {
+          "table": "Dimension.City",
+          "status": "pass",
+          "key_cols": [
+            "City Key"
+          ],
+          "ignored": [],
+          "rows_before": 116295,
+          "rows_legacy": 116295,
+          "rows_spark": 116295,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "City",
+            "City Key",
+            "Continent",
+            "Country",
+            "Latest Recorded Population",
+            "Lineage Key",
+            "Location",
+            "Region",
+            "Sales Territory",
+            "State Province",
+            "Subregion",
+            "Valid From",
+            "Valid To",
+            "WWI City ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Customer",
+          "status": "pass",
+          "key_cols": [
+            "Customer Key"
+          ],
+          "ignored": [],
+          "rows_before": 403,
+          "rows_legacy": 403,
+          "rows_spark": 403,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Bill To Customer",
+            "Buying Group",
+            "Category",
+            "Customer",
+            "Customer Key",
+            "Lineage Key",
+            "Postal Code",
+            "Primary Contact",
+            "Valid From",
+            "Valid To",
+            "WWI Customer ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Employee",
+          "status": "pass",
+          "key_cols": [
+            "Employee Key"
+          ],
+          "ignored": [],
+          "rows_before": 213,
+          "rows_legacy": 213,
+          "rows_spark": 213,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Employee",
+            "Employee Key",
+            "Is Salesperson",
+            "Lineage Key",
+            "Photo",
+            "Preferred Name",
+            "Valid From",
+            "Valid To",
+            "WWI Employee ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Stock Item",
+          "status": "pass",
+          "key_cols": [
+            "Stock Item Key"
+          ],
+          "ignored": [],
+          "rows_before": 672,
+          "rows_legacy": 672,
+          "rows_spark": 672,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Barcode",
+            "Brand",
+            "Buying Package",
+            "Color",
+            "Is Chiller Stock",
+            "Lead Time Days",
+            "Lineage Key",
+            "Photo",
+            "Quantity Per Outer",
+            "Recommended Retail Price",
+            "Selling Package",
+            "Size",
+            "Stock Item",
+            "Stock Item Key",
+            "Tax Rate",
+            "Typical Weight Per Unit",
+            "Unit Price",
+            "Valid From",
+            "Valid To",
+            "WWI Stock Item ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Fact.Sale",
+          "status": "pass",
+          "key_cols": [
+            "Sale Key",
+            "Invoice Date Key"
+          ],
+          "ignored": [
+            {
+              "column": "Sale Key",
+              "reason": "identity column: SQL Server gives new rows the next number, and a rollback doesn't hand numbers back, so two runs on the same input get different values"
+            }
+          ],
+          "rows_before": 228265,
+          "rows_legacy": 228265,
+          "rows_spark": 228265,
+          "rows_changed_by_legacy": 6143,
+          "compared_cols": [
+            "Bill To Customer Key",
+            "City Key",
+            "Customer Key",
+            "Delivery Date Key",
+            "Description",
+            "Invoice Date Key",
+            "Lineage Key",
+            "Package",
+            "Profit",
+            "Quantity",
+            "Sale Key",
+            "Salesperson Key",
+            "Stock Item Key",
+            "Tax Amount",
+            "Tax Rate",
+            "Total Chiller Items",
+            "Total Dry Items",
+            "Total Excluding Tax",
+            "Total Including Tax",
+            "Unit Price",
+            "WWI Invoice ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "pass",
+              "rows_only_in_legacy": 0,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_checked": 222122
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.ETL Cutoff",
+          "status": "pass",
+          "key_cols": [
+            "Table Name"
+          ],
+          "ignored": [],
+          "rows_before": 14,
+          "rows_legacy": 14,
+          "rows_spark": 14,
+          "rows_changed_by_legacy": 1,
+          "compared_cols": [
+            "Cutoff Time",
+            "Table Name"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Lineage",
+          "status": "pass",
+          "key_cols": [
+            "Lineage Key"
+          ],
+          "ignored": [
+            {
+              "column": "Data Load Completed",
+              "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+            }
+          ],
+          "rows_before": 29,
+          "rows_legacy": 29,
+          "rows_spark": 29,
+          "rows_changed_by_legacy": 1,
+          "compared_cols": [
+            "Data Load Completed",
+            "Data Load Started",
+            "Lineage Key",
+            "Source System Cutoff Time",
+            "Table Name",
+            "Was Successful"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "pass",
+              "rows_only_in_legacy": 0,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_checked": 28
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Sale_Staging",
+          "status": "pass",
+          "key_cols": [
+            "Sale Staging Key"
+          ],
+          "ignored": [],
+          "rows_before": 6143,
+          "rows_legacy": 6143,
+          "rows_spark": 6143,
+          "rows_changed_by_legacy": 6143,
+          "compared_cols": [
+            "Bill To Customer Key",
+            "City Key",
+            "Customer Key",
+            "Delivery Date Key",
+            "Description",
+            "Invoice Date Key",
+            "Last Modified When",
+            "Package",
+            "Profit",
+            "Quantity",
+            "Sale Staging Key",
+            "Salesperson Key",
+            "Stock Item Key",
+            "Tax Amount",
+            "Tax Rate",
+            "Total Chiller Items",
+            "Total Dry Items",
+            "Total Excluding Tax",
+            "Total Including Tax",
+            "Unit Price",
+            "WWI Bill To Customer ID",
+            "WWI City ID",
+            "WWI Customer ID",
+            "WWI Invoice ID",
+            "WWI Salesperson ID",
+            "WWI Stock Item ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "job": "city",
+      "dataset": "dev",
+      "snapshot": "city",
+      "ai_can_see": true,
+      "proc": "Integration.MigrateStagedCityData",
+      "spark_file": "jobs_pyspark/city.py",
+      "status": "pass",
+      "staging_window": {
+        "window_from": "2015-06-06 12:31:17",
+        "window_to": "2015-07-06 12:31:17"
+      },
+      "legacy_proc_seconds": 0.508,
+      "spark_job_seconds": 5.527,
+      "spark_total_seconds": 14.85,
+      "tables_found_by_metadata": [
+        {
+          "table": "Dimension.City",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedCityData"
+        },
+        {
+          "table": "Integration.Lineage",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedCityData"
+        },
+        {
+          "table": "Integration.[ETL Cutoff]",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedCityData"
+        },
+        {
+          "table": "Integration.City_Staging",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedCityData"
+        }
+      ],
+      "probe": {
+        "method": "staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table",
+        "probed_at": "2026-11-04 21:21:14"
+      },
+      "tables": [
+        {
+          "table": "Dimension.City",
+          "status": "pass",
+          "key_cols": [
+            "City Key"
+          ],
+          "ignored": [
+            {
+              "column": "City Key",
+              "reason": "differs between two runs of the legacy job on the same input"
+            }
+          ],
+          "rows_before": 116295,
+          "rows_legacy": 125923,
+          "rows_spark": 125923,
+          "rows_changed_by_legacy": 19256,
+          "compared_cols": [
+            "City",
+            "City Key",
+            "Continent",
+            "Country",
+            "Latest Recorded Population",
+            "Lineage Key",
+            "Location",
+            "Region",
+            "Sales Territory",
+            "State Province",
+            "Subregion",
+            "Valid From",
+            "Valid To",
+            "WWI City ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "pass",
+              "rows_only_in_legacy": 0,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_checked": 106667
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.City_Staging",
+          "status": "pass",
+          "key_cols": [
+            "City Staging Key"
+          ],
+          "ignored": [],
+          "rows_before": 9628,
+          "rows_legacy": 9628,
+          "rows_spark": 9628,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "City",
+            "City Staging Key",
+            "Continent",
+            "Country",
+            "Latest Recorded Population",
+            "Location",
+            "Region",
+            "Sales Territory",
+            "State Province",
+            "Subregion",
+            "Valid From",
+            "Valid To",
+            "WWI City ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.ETL Cutoff",
+          "status": "pass",
+          "key_cols": [
+            "Table Name"
+          ],
+          "ignored": [],
+          "rows_before": 14,
+          "rows_legacy": 14,
+          "rows_spark": 14,
+          "rows_changed_by_legacy": 1,
+          "compared_cols": [
+            "Cutoff Time",
+            "Table Name"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Lineage",
+          "status": "pass",
+          "key_cols": [
+            "Lineage Key"
+          ],
+          "ignored": [
+            {
+              "column": "Data Load Completed",
+              "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+            }
+          ],
+          "rows_before": 15,
+          "rows_legacy": 15,
+          "rows_spark": 15,
+          "rows_changed_by_legacy": 1,
+          "compared_cols": [
+            "Data Load Completed",
+            "Data Load Started",
+            "Lineage Key",
+            "Source System Cutoff Time",
+            "Table Name",
+            "Was Successful"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "pass",
+              "rows_only_in_legacy": 0,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_checked": 14
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "job": "movement",
+      "dataset": "dev",
+      "snapshot": "movement",
+      "ai_can_see": true,
+      "proc": "Integration.MigrateStagedMovementData",
+      "spark_file": "jobs_pyspark/movement.py",
+      "status": "fail",
+      "staging_window": "default: the month up to the ETL cutoff",
+      "legacy_proc_seconds": 0.744,
+      "spark_job_seconds": 13.904,
+      "spark_total_seconds": 24.478,
+      "tables_found_by_metadata": [
+        {
+          "table": "Fact.Movement",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Integration.Lineage",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Integration.Movement_Staging",
+          "written": true,
+          "read": true,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Integration.[ETL Cutoff]",
+          "written": true,
+          "read": false,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Dimension.Customer",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Dimension.Supplier",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Dimension.[Stock Item]",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedMovementData"
+        },
+        {
+          "table": "Dimension.[Transaction Type]",
+          "written": false,
+          "read": true,
+          "via": "Integration.MigrateStagedMovementData"
+        }
+      ],
+      "probe": {
+        "method": "staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table",
+        "probed_at": "2026-11-04 21:21:22"
+      },
+      "tables": [
+        {
+          "table": "Dimension.Customer",
+          "status": "pass",
+          "key_cols": [
+            "Customer Key"
+          ],
+          "ignored": [],
+          "rows_before": 403,
+          "rows_legacy": 403,
+          "rows_spark": 403,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Bill To Customer",
+            "Buying Group",
+            "Category",
+            "Customer",
+            "Customer Key",
+            "Lineage Key",
+            "Postal Code",
+            "Primary Contact",
+            "Valid From",
+            "Valid To",
+            "WWI Customer ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Stock Item",
+          "status": "pass",
+          "key_cols": [
+            "Stock Item Key"
+          ],
+          "ignored": [],
+          "rows_before": 672,
+          "rows_legacy": 672,
+          "rows_spark": 672,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Barcode",
+            "Brand",
+            "Buying Package",
+            "Color",
+            "Is Chiller Stock",
+            "Lead Time Days",
+            "Lineage Key",
+            "Photo",
+            "Quantity Per Outer",
+            "Recommended Retail Price",
+            "Selling Package",
+            "Size",
+            "Stock Item",
+            "Stock Item Key",
+            "Tax Rate",
+            "Typical Weight Per Unit",
+            "Unit Price",
+            "Valid From",
+            "Valid To",
+            "WWI Stock Item ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Supplier",
+          "status": "pass",
+          "key_cols": [
+            "Supplier Key"
+          ],
+          "ignored": [],
+          "rows_before": 28,
+          "rows_legacy": 28,
+          "rows_spark": 28,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Category",
+            "Lineage Key",
+            "Payment Days",
+            "Postal Code",
+            "Primary Contact",
+            "Supplier",
+            "Supplier Key",
+            "Supplier Reference",
+            "Valid From",
+            "Valid To",
+            "WWI Supplier ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Dimension.Transaction Type",
+          "status": "pass",
+          "key_cols": [
+            "Transaction Type Key"
+          ],
+          "ignored": [],
+          "rows_before": 15,
+          "rows_legacy": 15,
+          "rows_spark": 15,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Lineage Key",
+            "Transaction Type",
+            "Transaction Type Key",
+            "Valid From",
+            "Valid To",
+            "WWI Transaction Type ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Fact.Movement",
+          "status": "pass",
+          "key_cols": [
+            "Movement Key",
+            "Date Key"
+          ],
+          "ignored": [],
+          "rows_before": 236667,
+          "rows_legacy": 236667,
+          "rows_spark": 236667,
+          "rows_changed_by_legacy": 5053,
+          "compared_cols": [
+            "Customer Key",
+            "Date Key",
+            "Lineage Key",
+            "Movement Key",
+            "Quantity",
+            "Stock Item Key",
+            "Supplier Key",
+            "Transaction Type Key",
+            "WWI Invoice ID",
+            "WWI Purchase Order ID",
+            "WWI Stock Item Transaction ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.ETL Cutoff",
+          "status": "fail",
+          "key_cols": [
+            "Table Name"
+          ],
+          "ignored": [],
+          "rows_before": 14,
+          "rows_legacy": 14,
+          "rows_spark": 14,
+          "rows_changed_by_legacy": 0,
+          "compared_cols": [
+            "Cutoff Time",
+            "Table Name"
+          ],
+          "result": {
+            "status": "fail",
+            "rows_only_in_legacy": 14,
+            "rows_only_in_spark": 14,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": [],
+            "rows_changed": 14,
+            "cells_changed": 14,
+            "changed_columns": {
+              "Cutoff Time": 14
+            },
+            "keys_only_in_legacy": 0,
+            "keys_only_in_spark": 0,
+            "examples": [
+              {
+                "key": [
+                  "City"
+                ],
+                "column": "Cutoff Time",
+                "legacy": "2016-06-06 12:31:17",
+                "spark": "2016-06-06 12:31:17+00:00"
+              },
+              {
+                "key": [
+                  "Customer"
+                ],
+                "column": "Cutoff Time",
+                "legacy": "2016-06-06 12:31:17",
+                "spark": "2016-06-06 12:31:17+00:00"
+              },
+              {
+                "key": [
+                  "Date"
+                ],
+                "column": "Cutoff Time",
+                "legacy": "2012-12-31 00:00:00",
+                "spark": "2012-12-31 00:00:00+00:00"
+              },
+              {
+                "key": [
+                  "Employee"
+                ],
+                "column": "Cutoff Time",
+                "legacy": "2016-06-06 12:31:17",
+                "spark": "2016-06-06 12:31:17+00:00"
+              },
+              {
+                "key": [
+                  "Movement"
+                ],
+                "column": "Cutoff Time",
+                "legacy": "2016-06-06 12:31:17",
+                "spark": "2016-06-06 12:31:17+00:00"
+              }
+            ]
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Lineage",
+          "status": "fail",
+          "key_cols": [
+            "Lineage Key"
+          ],
+          "ignored": [
+            {
+              "column": "Data Load Completed",
+              "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+            }
+          ],
+          "rows_before": 16,
+          "rows_legacy": 16,
+          "rows_spark": 16,
+          "rows_changed_by_legacy": 1,
+          "compared_cols": [
+            "Data Load Completed",
+            "Data Load Started",
+            "Lineage Key",
+            "Source System Cutoff Time",
+            "Table Name",
+            "Was Successful"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "untouched_rows",
+              "status": "fail",
+              "rows_only_in_legacy": 13,
+              "rows_only_in_spark": 0,
+              "columns_only_in_legacy": [],
+              "columns_only_in_spark": [],
+              "rows_changed": 0,
+              "cells_changed": 0,
+              "changed_columns": {},
+              "keys_only_in_legacy": 13,
+              "keys_only_in_spark": 0,
+              "examples": [],
+              "rows_checked": 15
+            },
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        },
+        {
+          "table": "Integration.Movement_Staging",
+          "status": "pass",
+          "key_cols": [
+            "Movement Staging Key"
+          ],
+          "ignored": [],
+          "rows_before": 5053,
+          "rows_legacy": 5053,
+          "rows_spark": 5053,
+          "rows_changed_by_legacy": 5053,
+          "compared_cols": [
+            "Customer Key",
+            "Date Key",
+            "Last Modifed When",
+            "Movement Staging Key",
+            "Quantity",
+            "Stock Item Key",
+            "Supplier Key",
+            "Transaction Type Key",
+            "WWI Customer ID",
+            "WWI Invoice ID",
+            "WWI Purchase Order ID",
+            "WWI Stock Item ID",
+            "WWI Stock Item Transaction ID",
+            "WWI Supplier ID",
+            "WWI Transaction Type ID"
+          ],
+          "result": {
+            "status": "pass",
+            "rows_only_in_legacy": 0,
+            "rows_only_in_spark": 0,
+            "columns_only_in_legacy": [],
+            "columns_only_in_spark": []
+          },
+          "extra_checks": [
+            {
+              "name": "unique_key",
+              "status": "pass",
+              "duplicate_keys": 0,
+              "examples": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
