@@ -1,0 +1,147 @@
+{
+  "summary": {
+    "sqlglot_version": "30.29.0",
+    "statements": 17,
+    "sqlglot_succeeded": 17,
+    "spark_parse_rejected": 7,
+    "note": "Only the 3 procedures in legacy_jobs/wwi/. The DEVLOG probe ran the same idea on all 13 Microsoft procedures (141/141 statements transpiled)."
+  },
+  "statements": [
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+      "kind": "DECLARE",
+      "tsql": "DECLARE   @EndOfTime DATETIME2(7) = '99991231 23:59:59.9999999'",
+      "transpiled": "DECLARE   ${EndOfTime} TIMESTAMP = '99991231 23:59:59.9999999'",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+      "kind": "DECLARE",
+      "tsql": "DECLARE   @LineageKey INTEGER = (\n  SELECT\n  TOP 1\n    [Lineage Key]\n  FROM Integration.Lineage\n  WHERE\n    [Table Name] = N'City' AND [Data Load Completed] IS NULL\n  ORDER BY\n    [Lineage Key] DESC\n)",
+      "transpiled": "DECLARE   ${LineageKey} INT = (\n  SELECT\n    `Lineage Key`\n  FROM Integration.Lineage\n  WHERE\n    `Table Name` = 'City' AND `Data Load Completed` IS NULL\n  ORDER BY\n    `Lineage Key` DESC\n  LIMIT 1\n)",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+      "kind": "UPDATE",
+      "tsql": "WITH RowsToCloseOff AS (\n  SELECT\n    c.[WWI City ID] AS [WWI City ID],\n    MIN(c.[Valid From]) AS [Valid From]\n  FROM Integration.City_Staging AS c\n  GROUP BY\n    c.[WWI City ID]\n)\nUPDATE c SET c.[Valid To] = rtco.[Valid From]\nFROM Dimension.City AS c\n  INNER JOIN RowsToCloseOff AS rtco\n    ON c.[WWI City ID] = rtco.[WWI City ID]\nWHERE\n  c.[Valid To] = @EndOfTime",
+      "transpiled": "WITH RowsToCloseOff AS (\n  SELECT\n    c.`WWI City ID` AS `WWI City ID`,\n    MIN(c.`Valid From`) AS `Valid From`\n  FROM Integration.City_Staging AS c\n  GROUP BY\n    c.`WWI City ID`\n)\nUPDATE c SET c.`Valid To` = rtco.`Valid From`\nFROM Dimension.City AS c\n  INNER JOIN RowsToCloseOff AS rtco\n    ON c.`WWI City ID` = rtco.`WWI City ID`\nWHERE\n  c.`Valid To` = ${EndOfTime}",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'FROM'. SQLSTATE: 42601 (line 10, pos 0)"
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+      "kind": "INSERT",
+      "tsql": "INSERT INTO Dimension.City (\n  [WWI City ID],\n  City,\n  [State Province],\n  Country,\n  Continent,\n  [Sales Territory],\n  Region,\n  Subregion,\n  [Location],\n  [Latest Recorded Population],\n  [Valid From],\n  [Valid To],\n  [Lineage Key]\n)\nSELECT\n  [WWI City ID],\n  City,\n  [State Province],\n  Country,\n  Continent,\n  [Sales Territory],\n  Region,\n  Subregion,\n  [Location],\n  [Latest Recorded Population],\n  [Valid From],\n  [Valid To],\n  @LineageKey\nFROM Integration.City_Staging",
+      "transpiled": "INSERT INTO Dimension.City (\n  `WWI City ID`,\n  City,\n  `State Province`,\n  Country,\n  Continent,\n  `Sales Territory`,\n  Region,\n  Subregion,\n  `Location`,\n  `Latest Recorded Population`,\n  `Valid From`,\n  `Valid To`,\n  `Lineage Key`\n)\nSELECT\n  `WWI City ID`,\n  City,\n  `State Province`,\n  Country,\n  Continent,\n  `Sales Territory`,\n  Region,\n  Subregion,\n  `Location`,\n  `Latest Recorded Population`,\n  `Valid From`,\n  `Valid To`,\n  ${LineageKey}\nFROM Integration.City_Staging",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+      "kind": "UPDATE",
+      "tsql": "UPDATE Integration.Lineage SET [Data Load Completed] = GETDATE(), [Was Successful] = 1\nWHERE\n  [Lineage Key] = @LineageKey",
+      "transpiled": "UPDATE Integration.Lineage SET `Data Load Completed` = CURRENT_TIMESTAMP(), `Was Successful` = 1\nWHERE\n  `Lineage Key` = ${LineageKey}",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+      "kind": "UPDATE",
+      "tsql": "UPDATE Integration.[ETL Cutoff] SET [Cutoff Time] = (\n  SELECT\n    [Source System Cutoff Time]\n  FROM Integration.Lineage\n  WHERE\n    [Lineage Key] = @LineageKey\n)\nFROM Integration.[ETL Cutoff]\nWHERE\n  [Table Name] = N'City'",
+      "transpiled": "UPDATE Integration.`ETL Cutoff` SET `Cutoff Time` = (\n  SELECT\n    `Source System Cutoff Time`\n  FROM Integration.Lineage\n  WHERE\n    `Lineage Key` = ${LineageKey}\n)\nFROM Integration.`ETL Cutoff`\nWHERE\n  `Table Name` = 'City'",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'FROM'. SQLSTATE: 42601 (line 8, pos 0)"
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+      "kind": "DECLARE",
+      "tsql": "DECLARE   @LineageKey INTEGER = (\n  SELECT\n  TOP 1\n    [Lineage Key]\n  FROM Integration.Lineage\n  WHERE\n    [Table Name] = N'Movement' AND [Data Load Completed] IS NULL\n  ORDER BY\n    [Lineage Key] DESC\n)",
+      "transpiled": "DECLARE   ${LineageKey} INT = (\n  SELECT\n    `Lineage Key`\n  FROM Integration.Lineage\n  WHERE\n    `Table Name` = 'Movement' AND `Data Load Completed` IS NULL\n  ORDER BY\n    `Lineage Key` DESC\n  LIMIT 1\n)",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+      "kind": "UPDATE",
+      "tsql": "/* Find the dimension keys required */\nUPDATE m SET m.[Stock Item Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      si.[Stock Item Key]\n    FROM Dimension.[Stock Item] AS si\n    WHERE\n      si.[WWI Stock Item ID] = m.[WWI Stock Item ID]\n      AND m.[Last Modifed When] > si.[Valid From]\n      AND m.[Last Modifed When] <= si.[Valid To]\n    ORDER BY\n      si.[Valid From]\n  ),\n  0\n), m.[Customer Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      c.[Customer Key]\n    FROM Dimension.Customer AS c\n    WHERE\n      c.[WWI Customer ID] = m.[WWI Customer ID]\n      AND m.[Last Modifed When] > c.[Valid From]\n      AND m.[Last Modifed When] <= c.[Valid To]\n    ORDER BY\n      c.[Valid From]\n  ),\n  0\n), m.[Supplier Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      s.[Supplier Key]\n    FROM Dimension.Supplier AS s\n    WHERE\n      s.[WWI Supplier ID] = m.[WWI Supplier ID]\n      AND m.[Last Modifed When] > s.[Valid From]\n      AND m.[Last Modifed When] <= s.[Valid To]\n    ORDER BY\n      s.[Valid From]\n  ),\n  0\n), m.[Transaction Type Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      tt.[Transaction Type Key]\n    FROM Dimension.[Transaction Type] AS tt\n    WHERE\n      tt.[WWI Transaction Type ID] = m.[WWI Transaction Type ID]\n      AND m.[Last Modifed When] > tt.[Valid From]\n      AND m.[Last Modifed When] <= tt.[Valid To]\n    ORDER BY\n      tt.[Valid From]\n  ),\n  0\n)\nFROM Integration.Movement_Staging AS m",
+      "transpiled": "/* Find the dimension keys required */\nUPDATE m SET m.`Stock Item Key` = COALESCE(\n  (\n    SELECT\n      si.`Stock Item Key`\n    FROM Dimension.`Stock Item` AS si\n    WHERE\n      si.`WWI Stock Item ID` = m.`WWI Stock Item ID`\n      AND m.`Last Modifed When` > si.`Valid From`\n      AND m.`Last Modifed When` <= si.`Valid To`\n    ORDER BY\n      si.`Valid From`\n    LIMIT 1\n  ),\n  0\n), m.`Customer Key` = COALESCE(\n  (\n    SELECT\n      c.`Customer Key`\n    FROM Dimension.Customer AS c\n    WHERE\n      c.`WWI Customer ID` = m.`WWI Customer ID`\n      AND m.`Last Modifed When` > c.`Valid From`\n      AND m.`Last Modifed When` <= c.`Valid To`\n    ORDER BY\n      c.`Valid From`\n    LIMIT 1\n  ),\n  0\n), m.`Supplier Key` = COALESCE(\n  (\n    SELECT\n      s.`Supplier Key`\n    FROM Dimension.Supplier AS s\n    WHERE\n      s.`WWI Supplier ID` = m.`WWI Supplier ID`\n      AND m.`Last Modifed When` > s.`Valid From`\n      AND m.`Last Modifed When` <= s.`Valid To`\n    ORDER BY\n      s.`Valid From`\n    LIMIT 1\n  ),\n  0\n), m.`Transaction Type Key` = COALESCE(\n  (\n    SELECT\n      tt.`Transaction Type Key`\n    FROM Dimension.`Transaction Type` AS tt\n    WHERE\n      tt.`WWI Transaction Type ID` = m.`WWI Transaction Type ID`\n      AND m.`Last Modifed When` > tt.`Valid From`\n      AND m.`Last Modifed When` <= tt.`Valid To`\n    ORDER BY\n      tt.`Valid From`\n    LIMIT 1\n  ),\n  0\n)\nFROM Integration.Movement_Staging AS m",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'FROM'. SQLSTATE: 42601 (line 59, pos 0)"
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+      "kind": "MERGE",
+      "tsql": "MERGE INTO Fact.Movement AS m\nUSING Integration.Movement_Staging AS ms\nON m.[WWI Stock Item Transaction ID] = ms.[WWI Stock Item Transaction ID]\nWHEN MATCHED THEN UPDATE SET\n  m.[Date Key] = ms.[Date Key],\n  m.[Stock Item Key] = ms.[Stock Item Key],\n  m.[Customer Key] = ms.[Customer Key],\n  m.[Supplier Key] = ms.[Supplier Key],\n  m.[Transaction Type Key] = ms.[Transaction Type Key],\n  m.[WWI Invoice ID] = ms.[WWI Invoice ID],\n  m.[WWI Purchase Order ID] = ms.[WWI Purchase Order ID],\n  m.Quantity = ms.Quantity,\n  m.[Lineage Key] = @LineageKey\nWHEN NOT MATCHED THEN INSERT (\n  [Date Key],\n  [Stock Item Key],\n  [Customer Key],\n  [Supplier Key],\n  [Transaction Type Key],\n  [WWI Stock Item Transaction ID],\n  [WWI Invoice ID],\n  [WWI Purchase Order ID],\n  Quantity,\n  [Lineage Key]\n) VALUES (\n  ms.[Date Key],\n  ms.[Stock Item Key],\n  ms.[Customer Key],\n  ms.[Supplier Key],\n  ms.[Transaction Type Key],\n  ms.[WWI Stock Item Transaction ID],\n  ms.[WWI Invoice ID],\n  ms.[WWI Purchase Order ID],\n  ms.Quantity,\n  @LineageKey\n) /* Merge the data into the fact table */",
+      "transpiled": "MERGE INTO Fact.Movement AS m\nUSING Integration.Movement_Staging AS ms\nON m.`WWI Stock Item Transaction ID` = ms.`WWI Stock Item Transaction ID`\nWHEN MATCHED THEN UPDATE SET\n  m.`Date Key` = ms.`Date Key`,\n  m.`Stock Item Key` = ms.`Stock Item Key`,\n  m.`Customer Key` = ms.`Customer Key`,\n  m.`Supplier Key` = ms.`Supplier Key`,\n  m.`Transaction Type Key` = ms.`Transaction Type Key`,\n  m.`WWI Invoice ID` = ms.`WWI Invoice ID`,\n  m.`WWI Purchase Order ID` = ms.`WWI Purchase Order ID`,\n  m.Quantity = ms.Quantity,\n  m.`Lineage Key` = ${LineageKey}\nWHEN NOT MATCHED THEN INSERT (\n  `Date Key`,\n  `Stock Item Key`,\n  `Customer Key`,\n  `Supplier Key`,\n  `Transaction Type Key`,\n  `WWI Stock Item Transaction ID`,\n  `WWI Invoice ID`,\n  `WWI Purchase Order ID`,\n  Quantity,\n  `Lineage Key`\n) VALUES (\n  ms.`Date Key`,\n  ms.`Stock Item Key`,\n  ms.`Customer Key`,\n  ms.`Supplier Key`,\n  ms.`Transaction Type Key`,\n  ms.`WWI Stock Item Transaction ID`,\n  ms.`WWI Invoice ID`,\n  ms.`WWI Purchase Order ID`,\n  ms.Quantity,\n  ${LineageKey}\n) /* Merge the data into the fact table */",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+      "kind": "UPDATE",
+      "tsql": "UPDATE Integration.Lineage SET [Data Load Completed] = GETDATE(), [Was Successful] = 1\nWHERE\n  [Lineage Key] = @LineageKey",
+      "transpiled": "UPDATE Integration.Lineage SET `Data Load Completed` = CURRENT_TIMESTAMP(), `Was Successful` = 1\nWHERE\n  `Lineage Key` = ${LineageKey}",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+      "kind": "UPDATE",
+      "tsql": "UPDATE Integration.[ETL Cutoff] SET [Cutoff Time] = (\n  SELECT\n    [Source System Cutoff Time]\n  FROM Integration.Lineage\n  WHERE\n    [Lineage Key] = @LineageKey\n)\nFROM Integration.[ETL Cutoff]\nWHERE\n  [Table Name] = N'Movement'",
+      "transpiled": "UPDATE Integration.`ETL Cutoff` SET `Cutoff Time` = (\n  SELECT\n    `Source System Cutoff Time`\n  FROM Integration.Lineage\n  WHERE\n    `Lineage Key` = ${LineageKey}\n)\nFROM Integration.`ETL Cutoff`\nWHERE\n  `Table Name` = 'Movement'",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'FROM'. SQLSTATE: 42601 (line 8, pos 0)"
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+      "kind": "DECLARE",
+      "tsql": "DECLARE   @LineageKey INTEGER = (\n  SELECT\n  TOP 1\n    [Lineage Key]\n  FROM Integration.Lineage\n  WHERE\n    [Table Name] = N'Sale' AND [Data Load Completed] IS NULL\n  ORDER BY\n    [Lineage Key] DESC\n)",
+      "transpiled": "DECLARE   ${LineageKey} INT = (\n  SELECT\n    `Lineage Key`\n  FROM Integration.Lineage\n  WHERE\n    `Table Name` = 'Sale' AND `Data Load Completed` IS NULL\n  ORDER BY\n    `Lineage Key` DESC\n  LIMIT 1\n)",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+      "kind": "UPDATE",
+      "tsql": "/* Find the dimension keys required */\nUPDATE s SET s.[City Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      c.[City Key]\n    FROM Dimension.City AS c\n    WHERE\n      c.[WWI City ID] = s.[WWI City ID]\n      AND s.[Last Modified When] > c.[Valid From]\n      AND s.[Last Modified When] <= c.[Valid To]\n    ORDER BY\n      c.[Valid From]\n  ),\n  0\n), s.[Customer Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      c.[Customer Key]\n    FROM Dimension.Customer AS c\n    WHERE\n      c.[WWI Customer ID] = s.[WWI Customer ID]\n      AND s.[Last Modified When] > c.[Valid From]\n      AND s.[Last Modified When] <= c.[Valid To]\n    ORDER BY\n      c.[Valid From]\n  ),\n  0\n), s.[Bill To Customer Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      c.[Customer Key]\n    FROM Dimension.Customer AS c\n    WHERE\n      c.[WWI Customer ID] = s.[WWI Bill To Customer ID]\n      AND s.[Last Modified When] > c.[Valid From]\n      AND s.[Last Modified When] <= c.[Valid To]\n    ORDER BY\n      c.[Valid From]\n  ),\n  0\n), s.[Stock Item Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      si.[Stock Item Key]\n    FROM Dimension.[Stock Item] AS si\n    WHERE\n      si.[WWI Stock Item ID] = s.[WWI Stock Item ID]\n      AND s.[Last Modified When] > si.[Valid From]\n      AND s.[Last Modified When] <= si.[Valid To]\n    ORDER BY\n      si.[Valid From]\n  ),\n  0\n), s.[Salesperson Key] = COALESCE(\n  (\n    SELECT\n    TOP 1\n      e.[Employee Key]\n    FROM Dimension.Employee AS e\n    WHERE\n      e.[WWI Employee ID] = s.[WWI Salesperson ID]\n      AND s.[Last Modified When] > e.[Valid From]\n      AND s.[Last Modified When] <= e.[Valid To]\n    ORDER BY\n      e.[Valid From]\n  ),\n  0\n)\nFROM Integration.Sale_Staging AS s",
+      "transpiled": "/* Find the dimension keys required */\nUPDATE s SET s.`City Key` = COALESCE(\n  (\n    SELECT\n      c.`City Key`\n    FROM Dimension.City AS c\n    WHERE\n      c.`WWI City ID` = s.`WWI City ID`\n      AND s.`Last Modified When` > c.`Valid From`\n      AND s.`Last Modified When` <= c.`Valid To`\n    ORDER BY\n      c.`Valid From`\n    LIMIT 1\n  ),\n  0\n), s.`Customer Key` = COALESCE(\n  (\n    SELECT\n      c.`Customer Key`\n    FROM Dimension.Customer AS c\n    WHERE\n      c.`WWI Customer ID` = s.`WWI Customer ID`\n      AND s.`Last Modified When` > c.`Valid From`\n      AND s.`Last Modified When` <= c.`Valid To`\n    ORDER BY\n      c.`Valid From`\n    LIMIT 1\n  ),\n  0\n), s.`Bill To Customer Key` = COALESCE(\n  (\n    SELECT\n      c.`Customer Key`\n    FROM Dimension.Customer AS c\n    WHERE\n      c.`WWI Customer ID` = s.`WWI Bill To Customer ID`\n      AND s.`Last Modified When` > c.`Valid From`\n      AND s.`Last Modified When` <= c.`Valid To`\n    ORDER BY\n      c.`Valid From`\n    LIMIT 1\n  ),\n  0\n), s.`Stock Item Key` = COALESCE(\n  (\n    SELECT\n      si.`Stock Item Key`\n    FROM Dimension.`Stock Item` AS si\n    WHERE\n      si.`WWI Stock Item ID` = s.`WWI Stock Item ID`\n      AND s.`Last Modified When` > si.`Valid From`\n      AND s.`Last Modified When` <= si.`Valid To`\n    ORDER BY\n      si.`Valid From`\n    LIMIT 1\n  ),\n  0\n), s.`Salesperson Key` = COALESCE(\n  (\n    SELECT\n      e.`Employee Key`\n    FROM Dimension.Employee AS e\n    WHERE\n      e.`WWI Employee ID` = s.`WWI Salesperson ID`\n      AND s.`Last Modified When` > e.`Valid From`\n      AND s.`Last Modified When` <= e.`Valid To`\n    ORDER BY\n      e.`Valid From`\n    LIMIT 1\n  ),\n  0\n)\nFROM Integration.Sale_Staging AS s",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'FROM'. SQLSTATE: 42601 (line 73, pos 0)"
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+      "kind": "DELETE",
+      "tsql": "/* Remove any existing entries for any of these invoices */\nDELETE   s FROM Fact.Sale AS s\nWHERE\n  s.[WWI Invoice ID] IN (\n    SELECT\n      [WWI Invoice ID]\n    FROM Integration.Sale_Staging\n  )",
+      "transpiled": "/* Remove any existing entries for any of these invoices */\nDELETE   s FROM Fact.Sale AS s\nWHERE\n  s.`WWI Invoice ID` IN (\n    SELECT\n      `WWI Invoice ID`\n    FROM Integration.Sale_Staging\n  )",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 's': extra input 's'. SQLSTATE: 42601 (line 2, pos 9)"
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+      "kind": "INSERT",
+      "tsql": "/* Insert all current details for these invoices */\n/* Insert all current details for these invoices */\nINSERT INTO Fact.Sale (\n  [City Key],\n  [Customer Key],\n  [Bill To Customer Key],\n  [Stock Item Key],\n  [Invoice Date Key],\n  [Delivery Date Key],\n  [Salesperson Key],\n  [WWI Invoice ID],\n  [Description],\n  Package,\n  Quantity,\n  [Unit Price],\n  [Tax Rate],\n  [Total Excluding Tax],\n  [Tax Amount],\n  Profit,\n  [Total Including Tax],\n  [Total Dry Items],\n  [Total Chiller Items],\n  [Lineage Key]\n)\nSELECT\n  [City Key],\n  [Customer Key],\n  [Bill To Customer Key],\n  [Stock Item Key],\n  [Invoice Date Key],\n  [Delivery Date Key],\n  [Salesperson Key],\n  [WWI Invoice ID],\n  [Description],\n  Package,\n  Quantity,\n  [Unit Price],\n  [Tax Rate],\n  [Total Excluding Tax],\n  [Tax Amount],\n  Profit,\n  [Total Including Tax],\n  [Total Dry Items],\n  [Total Chiller Items],\n  @LineageKey\nFROM Integration.Sale_Staging",
+      "transpiled": "/* Insert all current details for these invoices */\n/* Insert all current details for these invoices */\nINSERT INTO Fact.Sale (\n  `City Key`,\n  `Customer Key`,\n  `Bill To Customer Key`,\n  `Stock Item Key`,\n  `Invoice Date Key`,\n  `Delivery Date Key`,\n  `Salesperson Key`,\n  `WWI Invoice ID`,\n  `Description`,\n  Package,\n  Quantity,\n  `Unit Price`,\n  `Tax Rate`,\n  `Total Excluding Tax`,\n  `Tax Amount`,\n  Profit,\n  `Total Including Tax`,\n  `Total Dry Items`,\n  `Total Chiller Items`,\n  `Lineage Key`\n)\nSELECT\n  `City Key`,\n  `Customer Key`,\n  `Bill To Customer Key`,\n  `Stock Item Key`,\n  `Invoice Date Key`,\n  `Delivery Date Key`,\n  `Salesperson Key`,\n  `WWI Invoice ID`,\n  `Description`,\n  Package,\n  Quantity,\n  `Unit Price`,\n  `Tax Rate`,\n  `Total Excluding Tax`,\n  `Tax Amount`,\n  Profit,\n  `Total Including Tax`,\n  `Total Dry Items`,\n  `Total Chiller Items`,\n  ${LineageKey}\nFROM Integration.Sale_Staging",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+      "kind": "UPDATE",
+      "tsql": "UPDATE Integration.Lineage SET [Data Load Completed] = GETDATE(), [Was Successful] = 1\nWHERE\n  [Lineage Key] = @LineageKey",
+      "transpiled": "UPDATE Integration.Lineage SET `Data Load Completed` = CURRENT_TIMESTAMP(), `Was Successful` = 1\nWHERE\n  `Lineage Key` = ${LineageKey}",
+      "sqlglot_error": null,
+      "spark_error": null
+    },
+    {
+      "file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+      "kind": "UPDATE",
+      "tsql": "UPDATE Integration.[ETL Cutoff] SET [Cutoff Time] = (\n  SELECT\n    [Source System Cutoff Time]\n  FROM Integration.Lineage\n  WHERE\n    [Lineage Key] = @LineageKey\n)\nFROM Integration.[ETL Cutoff]\nWHERE\n  [Table Name] = N'Sale'",
+      "transpiled": "UPDATE Integration.`ETL Cutoff` SET `Cutoff Time` = (\n  SELECT\n    `Source System Cutoff Time`\n  FROM Integration.Lineage\n  WHERE\n    `Lineage Key` = ${LineageKey}\n)\nFROM Integration.`ETL Cutoff`\nWHERE\n  `Table Name` = 'Sale'",
+      "sqlglot_error": null,
+      "spark_error": "[PARSE_SYNTAX_ERROR] Syntax error at or near 'FROM'. SQLSTATE: 42601 (line 8, pos 0)"
+    }
+  ]
+}
