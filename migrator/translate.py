@@ -1,6 +1,7 @@
 import subprocess, sys
 from pathlib import Path
 import pyarrow.parquet as pq
+import tempfile
 
 CONTRACT = """You are translating a legacy SQL Server stored procedure into PySpark.
 
@@ -64,11 +65,10 @@ def ask_claude(prompt):
     # Run the command `claude -p <prompt>` with subprocess, wait for it,
     # and give back what it printed.
     # If it fails, stop and show the error.
-    result=subprocess.run(
-        ["claude","-p",prompt],
-        capture_output= True,
-        text= True
-    )
+    with tempfile.TemporaryDirectory() as empty:
+        result = subprocess.run(["claude", "-p"], input=prompt,
+                                capture_output=True, text=True, cwd=empty)
+
     if result.returncode != 0:
         sys.exit(f"claude failed (exit code {result.returncode}):\n"
                  f"stderr: {result.stderr}\nstdout: {result.stdout}")
