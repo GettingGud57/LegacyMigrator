@@ -150,6 +150,12 @@ LegacyMigrator/
 
 ## Part 2: Set it up from scratch (Mac with Apple chip)
 
+**Shortcut:** `scripts/bench.sh` does steps 3 to 9 in one go (and starts Docker on Linux).
+It is safe to rerun and skips whatever is already done.
+On the Mac you still need steps 1 and 2 first, and step 8 (the ODBC driver) if it isn't installed: the script stops and points here.
+Then run the jobs as in step 10, or see `docs/reports/test-bench.html` for the full list of commands.
+
+
 Run commands **one at a time**. Pasting several at once can split lines.
 
 ### 1. Rosetta (lets the Mac run Intel software; SQL Server needs it)
