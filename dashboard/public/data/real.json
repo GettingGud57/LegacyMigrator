@@ -1,24 +1,24 @@
 {
   "contract_version": 1,
   "sample": false,
-  "generated_at": "2026-11-04T21:00:00Z",
-  "title": "Real runs so far",
+  "generated_at": "2026-11-04T21:45:52Z",
+  "title": "Test bench, real runs",
   "notes": [
-    "Integration.Sale_Staging: the PySpark translation in jobs_pyspark/sale.py matched the legacy output on all 5,224 rows and 26 columns (owner's Mac, Oct 2026).",
-    "The other seven Sale tables, and the City and Movement jobs, have not been compared yet.",
-    "No holdout data exists yet, so nothing is verified on data the AI never saw.",
-    "Timings, attempt start times and Spark row counts for the uncompared tables were not recorded."
+    "Real runs on the cloud test bench (SQL Server 2022 in Docker, PySpark local mode).",
+    "City and Movement are first-attempt AI translations, unedited.",
+    "Each job has one attempt: the AI's first translation, unedited. The retry loop isn't built yet.",
+    "Converted from origin/claude/test-bench by scripts/test_bench_to_results.py."
   ],
   "datasets": {
     "dev": {
       "label": "Dev data",
       "ai_can_see": true,
-      "description": "The data the AI may learn from. When an attempt fails here, a summary of the differences goes back to the AI for the next attempt."
+      "description": "The month of staged data up to the warehouse's ETL cutoff. The AI may learn from differences found here."
     },
     "holdout": {
       "label": "Holdout data",
       "ai_can_see": false,
-      "description": "A different slice of data the AI never sees: not in prompts, not in error feedback, not in the folder the AI runs in. Only checked once an attempt passes on dev data."
+      "description": "A different month the AI never sees: not in prompts, not in feedback, not in the folder it runs in."
     }
   },
   "jobs": [
@@ -28,21 +28,352 @@
       "proc": "Integration.MigrateStagedSaleData",
       "source_file": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
       "summary": "Looks up five dimension keys for each staged sale line, then replaces those invoices in Fact.Sale and closes the load in the lineage log.",
-      "status": "in_progress",
+      "status": "verified",
+      "stop_reason": null,
       "max_attempts": null,
       "legacy_sql": "\nCREATE PROCEDURE Integration.MigrateStagedSaleData\nWITH EXECUTE AS OWNER\nAS\nBEGIN\n    SET NOCOUNT ON;\n    SET XACT_ABORT ON;\n\n    BEGIN TRAN;\n\n    DECLARE @LineageKey int = (SELECT TOP(1) [Lineage Key]\n                               FROM Integration.Lineage\n                               WHERE [Table Name] = N'Sale'\n                               AND [Data Load Completed] IS NULL\n                               ORDER BY [Lineage Key] DESC);\n\n    -- Find the dimension keys required\n\n    UPDATE s\n        SET s.[City Key] = COALESCE((SELECT TOP(1) c.[City Key]\n                                     FROM Dimension.City AS c\n                                     WHERE c.[WWI City ID] = s.[WWI City ID]\n                                     AND s.[Last Modified When] > c.[Valid From]\n                                     AND s.[Last Modified When] <= c.[Valid To]\n\t\t\t\t\t\t\t\t\t ORDER BY c.[Valid From]), 0),\n            s.[Customer Key] = COALESCE((SELECT TOP(1) c.[Customer Key]\n                                           FROM Dimension.Customer AS c\n                                           WHERE c.[WWI Customer ID] = s.[WWI Customer ID]\n                                           AND s.[Last Modified When] > c.[Valid From]\n                                           AND s.[Last Modified When] <= c.[Valid To]\n\t\t\t\t\t\t\t\t\t       ORDER BY c.[Valid From]), 0),\n            s.[Bill To Customer Key] = COALESCE((SELECT TOP(1) c.[Customer Key]\n                                                 FROM Dimension.Customer AS c\n                                                 WHERE c.[WWI Customer ID] = s.[WWI Bill To Customer ID]\n                                                 AND s.[Last Modified When] > c.[Valid From]\n                                                 AND s.[Last Modified When] <= c.[Valid To]\n\t\t\t\t\t\t\t\t\t             ORDER BY c.[Valid From]), 0),\n            s.[Stock Item Key] = COALESCE((SELECT TOP(1) si.[Stock Item Key]\n                                           FROM Dimension.[Stock Item] AS si\n                                           WHERE si.[WWI Stock Item ID] = s.[WWI Stock Item ID]\n                                           AND s.[Last Modified When] > si.[Valid From]\n                                           AND s.[Last Modified When] <= si.[Valid To]\n\t\t\t\t\t\t\t\t\t       ORDER BY si.[Valid From]), 0),\n            s.[Salesperson Key] = COALESCE((SELECT TOP(1) e.[Employee Key]\n                                            FROM Dimension.Employee AS e\n                                            WHERE e.[WWI Employee ID] = s.[WWI Salesperson ID]\n                                            AND s.[Last Modified When] > e.[Valid From]\n                                            AND s.[Last Modified When] <= e.[Valid To]\n\t\t\t\t\t\t\t\t\t        ORDER BY e.[Valid From]), 0)\n    FROM Integration.Sale_Staging AS s;\n\n    -- Remove any existing entries for any of these invoices\n\n    DELETE s\n    FROM Fact.Sale AS s\n    WHERE s.[WWI Invoice ID] IN (SELECT [WWI Invoice ID] FROM Integration.Sale_Staging);\n\n    -- Insert all current details for these invoices\n\n    INSERT Fact.Sale\n        ([City Key], [Customer Key], [Bill To Customer Key], [Stock Item Key], [Invoice Date Key], [Delivery Date Key],\n         [Salesperson Key], [WWI Invoice ID], [Description], Package, Quantity, [Unit Price], [Tax Rate],\n         [Total Excluding Tax], [Tax Amount], Profit, [Total Including Tax], [Total Dry Items], [Total Chiller Items], [Lineage Key])\n    SELECT [City Key], [Customer Key], [Bill To Customer Key], [Stock Item Key], [Invoice Date Key], [Delivery Date Key],\n           [Salesperson Key], [WWI Invoice ID], [Description], Package, Quantity, [Unit Price], [Tax Rate],\n           [Total Excluding Tax], [Tax Amount], Profit, [Total Including Tax], [Total Dry Items], [Total Chiller Items], @LineageKey\n    FROM Integration.Sale_Staging;\n\n    UPDATE Integration.Lineage\n        SET [Data Load Completed] = SYSDATETIME(),\n            [Was Successful] = 1\n    WHERE [Lineage Key] = @LineageKey;\n\n    UPDATE Integration.[ETL Cutoff]\n        SET [Cutoff Time] = (SELECT [Source System Cutoff Time]\n                             FROM Integration.Lineage\n                             WHERE [Lineage Key] = @LineageKey)\n    FROM Integration.[ETL Cutoff]\n    WHERE [Table Name] = N'Sale';\n\n    COMMIT;\n\n    RETURN 0;\nEND;\n",
       "attempts": [
         {
           "number": 1,
           "started_at": null,
-          "seconds": null,
+          "seconds": 23.0,
           "code": "from pyspark.sql import functions as F\nfrom pyspark.sql import Window\n\n\ndef run(spark, tables):\n    lineage = tables[\"Integration.Lineage\"]\n    etl_cutoff = tables[\"Integration.ETL Cutoff\"]\n    city = tables[\"Dimension.City\"]\n    customer = tables[\"Dimension.Customer\"]\n    employee = tables[\"Dimension.Employee\"]\n    stock_item = tables[\"Dimension.Stock Item\"]\n    fact_sale = tables[\"Fact.Sale\"]\n    staging = tables[\"Integration.Sale_Staging\"]\n\n    staging_cols = staging.columns\n    fact_cols = fact_sale.columns\n    lineage_cols = lineage.columns\n    cutoff_cols = etl_cutoff.columns\n\n    # DECLARE @LineageKey = TOP(1) ... ORDER BY [Lineage Key] DESC\n    lk_row = (\n        lineage\n        .filter((F.col(\"Table Name\") == F.lit(\"Sale\")) & F.col(\"Data Load Completed\").isNull())\n        .orderBy(F.col(\"Lineage Key\").desc_nulls_last())\n        .select(\"Lineage Key\")\n        .limit(1)\n        .collect()\n    )\n    lineage_key = lk_row[0][\"Lineage Key\"] if lk_row else None\n\n    # UPDATE staging: dimension key lookups\n    s = staging.withColumn(\"__rid\", F.monotonically_increasing_id())\n\n    def lookup(df, dim, dim_id_col, dim_key_col, stg_id_col, target_col):\n        d = dim.select(\n            F.col(dim_id_col).alias(\"__d_id\"),\n            F.col(dim_key_col).alias(\"__d_key\"),\n            F.col(\"Valid From\").alias(\"__d_from\"),\n            F.col(\"Valid To\").alias(\"__d_to\"),\n        )\n        cond = (\n            (F.col(\"__d_id\") == F.col(stg_id_col))\n            & (F.col(\"Last Modified When\") > F.col(\"__d_from\"))\n            & (F.col(\"Last Modified When\") <= F.col(\"__d_to\"))\n        )\n        joined = df.join(d, cond, \"left\")\n        w = Window.partitionBy(\"__rid\").orderBy(\n            F.col(\"__d_from\").asc_nulls_first(), F.col(\"__d_key\").asc_nulls_first()\n        )\n        joined = (\n            joined.withColumn(\"__rn\", F.row_number().over(w))\n            .filter(F.col(\"__rn\") == 1)\n            .withColumn(\n                target_col,\n                F.coalesce(F.col(\"__d_key\").cast(\"long\"), F.lit(0).cast(\"long\")),\n            )\n            .drop(\"__d_id\", \"__d_key\", \"__d_from\", \"__d_to\", \"__rn\")\n        )\n        return joined\n\n    s = lookup(s, city, \"WWI City ID\", \"City Key\", \"WWI City ID\", \"City Key\")\n    s = lookup(s, customer, \"WWI Customer ID\", \"Customer Key\", \"WWI Customer ID\", \"Customer Key\")\n    s = lookup(s, customer, \"WWI Customer ID\", \"Customer Key\", \"WWI Bill To Customer ID\", \"Bill To Customer Key\")\n    s = lookup(s, stock_item, \"WWI Stock Item ID\", \"Stock Item Key\", \"WWI Stock Item ID\", \"Stock Item Key\")\n    s = lookup(s, employee, \"WWI Employee ID\", \"Employee Key\", \"WWI Salesperson ID\", \"Salesperson Key\")\n\n    s = s.localCheckpoint()\n\n    new_staging = s.select(*[F.col(c) for c in staging_cols])\n\n    # DELETE from Fact.Sale where invoice in staging\n    stg_ids = (\n        staging.select(F.col(\"WWI Invoice ID\").alias(\"__inv\"))\n        .filter(F.col(\"__inv\").isNotNull())\n        .distinct()\n    )\n    kept = fact_sale.join(\n        stg_ids, fact_sale[\"WWI Invoice ID\"] == stg_ids[\"__inv\"], \"left_anti\"\n    )\n\n    # INSERT new rows with identity Sale Key\n    max_row = fact_sale.agg(F.max(F.col(\"Sale Key\")).alias(\"m\")).collect()\n    max_key = max_row[0][\"m\"] if max_row and max_row[0][\"m\"] is not None else 0\n\n    w_ins = Window.orderBy(F.col(\"Sale Staging Key\").asc_nulls_first(), F.col(\"__rid\"))\n    ins = s.withColumn(\"__rn\", F.row_number().over(w_ins))\n\n    fact_types = dict((f.name, f.dataType) for f in fact_sale.schema.fields)\n\n    def fc(name, expr):\n        return expr.cast(fact_types[name]).alias(name)\n\n    insert_exprs = []\n    for c in fact_cols:\n        if c == \"Sale Key\":\n            insert_exprs.append(fc(c, F.lit(max_key) + F.col(\"__rn\")))\n        elif c == \"Lineage Key\":\n            insert_exprs.append(fc(c, F.lit(lineage_key)))\n        else:\n            insert_exprs.append(fc(c, F.col(c)))\n    inserted = ins.select(*insert_exprs)\n\n    new_fact = kept.select(*[F.col(c) for c in fact_cols]).unionByName(inserted)\n\n    # UPDATE Integration.Lineage\n    lin_types = dict((f.name, f.dataType) for f in lineage.schema.fields)\n    if lineage_key is not None:\n        is_target = F.col(\"Lineage Key\") == F.lit(lineage_key)\n    else:\n        is_target = F.lit(False)\n    is_target = F.coalesce(is_target, F.lit(False))\n\n    lin_exprs = []\n    for c in lineage_cols:\n        if c == \"Data Load Completed\":\n            lin_exprs.append(\n                F.when(is_target, F.current_timestamp().cast(lin_types[c]))\n                .otherwise(F.col(c))\n                .alias(c)\n            )\n        elif c == \"Was Successful\":\n            lin_exprs.append(\n                F.when(is_target, F.lit(True).cast(lin_types[c]))\n                .otherwise(F.col(c))\n                .alias(c)\n            )\n        else:\n            lin_exprs.append(F.col(c))\n    new_lineage = lineage.select(*lin_exprs)\n\n    # UPDATE Integration.ETL Cutoff\n    cutoff_val = None\n    if lineage_key is not None:\n        rows = (\n            lineage.filter(F.col(\"Lineage Key\") == F.lit(lineage_key))\n            .select(\"Source System Cutoff Time\")\n            .limit(1)\n            .collect()\n        )\n        cutoff_val = rows[0][\"Source System Cutoff Time\"] if rows else None\n\n    cut_types = dict((f.name, f.dataType) for f in etl_cutoff.schema.fields)\n    is_sale = F.coalesce(F.col(\"Table Name\") == F.lit(\"Sale\"), F.lit(False))\n    cut_exprs = []\n    for c in cutoff_cols:\n        if c == \"Cutoff Time\":\n            cut_exprs.append(\n                F.when(is_sale, F.lit(cutoff_val).cast(cut_types[c]))\n                .otherwise(F.col(c))\n                .alias(c)\n            )\n        else:\n            cut_exprs.append(F.col(c))\n    new_cutoff = etl_cutoff.select(*cut_exprs)\n\n    return {\n        \"Integration.Sale_Staging\": new_staging,\n        \"Fact.Sale\": new_fact,\n        \"Integration.Lineage\": new_lineage,\n        \"Integration.ETL Cutoff\": new_cutoff,\n    }\n",
           "error": null,
           "error_stage": null,
           "feedback": null,
+          "note": null,
           "runs": {
             "dev": {
               "tables": [
+                {
+                  "table": "Dimension.City",
+                  "key_cols": [
+                    "City Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 116295,
+                  "rows_spark": 116295,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "City",
+                      "City Key",
+                      "Continent",
+                      "Country",
+                      "Latest Recorded Population",
+                      "Lineage Key",
+                      "Location",
+                      "Region",
+                      "Sales Territory",
+                      "State Province",
+                      "Subregion",
+                      "Valid From",
+                      "Valid To",
+                      "WWI City ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Customer",
+                  "key_cols": [
+                    "Customer Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 403,
+                  "rows_spark": 403,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Bill To Customer",
+                      "Buying Group",
+                      "Category",
+                      "Customer",
+                      "Customer Key",
+                      "Lineage Key",
+                      "Postal Code",
+                      "Primary Contact",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Customer ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Employee",
+                  "key_cols": [
+                    "Employee Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 213,
+                  "rows_spark": 213,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Employee",
+                      "Employee Key",
+                      "Is Salesperson",
+                      "Lineage Key",
+                      "Photo",
+                      "Preferred Name",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Employee ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Stock Item",
+                  "key_cols": [
+                    "Stock Item Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 672,
+                  "rows_spark": 672,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Barcode",
+                      "Brand",
+                      "Buying Package",
+                      "Color",
+                      "Is Chiller Stock",
+                      "Lead Time Days",
+                      "Lineage Key",
+                      "Photo",
+                      "Quantity Per Outer",
+                      "Recommended Retail Price",
+                      "Selling Package",
+                      "Size",
+                      "Stock Item",
+                      "Stock Item Key",
+                      "Tax Rate",
+                      "Typical Weight Per Unit",
+                      "Unit Price",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Stock Item ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Fact.Sale",
+                  "key_cols": [
+                    "Sale Key",
+                    "Invoice Date Key"
+                  ],
+                  "ignored": [
+                    {
+                      "column": "Sale Key",
+                      "reason": "identity column: SQL Server gives new rows the next number, and a rollback doesn't hand numbers back, so two runs on the same input get different values"
+                    }
+                  ],
+                  "rows_legacy": 228265,
+                  "rows_spark": 228265,
+                  "rows_changed_by_legacy": 5224,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Bill To Customer Key",
+                      "City Key",
+                      "Customer Key",
+                      "Delivery Date Key",
+                      "Description",
+                      "Invoice Date Key",
+                      "Lineage Key",
+                      "Package",
+                      "Profit",
+                      "Quantity",
+                      "Salesperson Key",
+                      "Stock Item Key",
+                      "Tax Amount",
+                      "Tax Rate",
+                      "Total Chiller Items",
+                      "Total Dry Items",
+                      "Total Excluding Tax",
+                      "Total Including Tax",
+                      "Unit Price",
+                      "WWI Invoice ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "pass",
+                      "detail": "All 223,041 rows the old job left alone came out of the new code identical, ignored columns included."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.ETL Cutoff",
+                  "key_cols": [
+                    "Table Name"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 14,
+                  "rows_spark": 14,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Cutoff Time",
+                      "Table Name"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.Lineage",
+                  "key_cols": [
+                    "Lineage Key"
+                  ],
+                  "ignored": [
+                    {
+                      "column": "Data Load Completed",
+                      "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+                    }
+                  ],
+                  "rows_legacy": 28,
+                  "rows_spark": 28,
+                  "rows_changed_by_legacy": 1,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Data Load Started",
+                      "Lineage Key",
+                      "Source System Cutoff Time",
+                      "Table Name",
+                      "Was Successful"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "pass",
+                      "detail": "All 27 rows the old job left alone came out of the new code identical, ignored columns included."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
                 {
                   "table": "Integration.Sale_Staging",
                   "key_cols": [
@@ -51,6 +382,7 @@
                   "ignored": [],
                   "rows_legacy": 5224,
                   "rows_spark": 5224,
+                  "rows_changed_by_legacy": 5224,
                   "result": {
                     "status": "pass",
                     "compared_cols": [
@@ -86,20 +418,304 @@
                     "cols_only_a": [],
                     "cols_only_b": [],
                     "explanation": null
-                  }
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                }
+              ],
+              "seconds": 21.853,
+              "legacy_seconds": 1.177,
+              "window": "The month up to the ETL cutoff, 5,224 staged rows",
+              "stability_probe": "Staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table (2026-11-04 21:20:50). Only columns that differed between those two runs may be ignored."
+            },
+            "holdout": {
+              "tables": [
+                {
+                  "table": "Dimension.City",
+                  "key_cols": [
+                    "City Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 116295,
+                  "rows_spark": 116295,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "City",
+                      "City Key",
+                      "Continent",
+                      "Country",
+                      "Latest Recorded Population",
+                      "Lineage Key",
+                      "Location",
+                      "Region",
+                      "Sales Territory",
+                      "State Province",
+                      "Subregion",
+                      "Valid From",
+                      "Valid To",
+                      "WWI City ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Customer",
+                  "key_cols": [
+                    "Customer Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 403,
+                  "rows_spark": 403,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Bill To Customer",
+                      "Buying Group",
+                      "Category",
+                      "Customer",
+                      "Customer Key",
+                      "Lineage Key",
+                      "Postal Code",
+                      "Primary Contact",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Customer ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Employee",
+                  "key_cols": [
+                    "Employee Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 213,
+                  "rows_spark": 213,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Employee",
+                      "Employee Key",
+                      "Is Salesperson",
+                      "Lineage Key",
+                      "Photo",
+                      "Preferred Name",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Employee ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Stock Item",
+                  "key_cols": [
+                    "Stock Item Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 672,
+                  "rows_spark": 672,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Barcode",
+                      "Brand",
+                      "Buying Package",
+                      "Color",
+                      "Is Chiller Stock",
+                      "Lead Time Days",
+                      "Lineage Key",
+                      "Photo",
+                      "Quantity Per Outer",
+                      "Recommended Retail Price",
+                      "Selling Package",
+                      "Size",
+                      "Stock Item",
+                      "Stock Item Key",
+                      "Tax Rate",
+                      "Typical Weight Per Unit",
+                      "Unit Price",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Stock Item ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
                 },
                 {
                   "table": "Fact.Sale",
-                  "key_cols": null,
+                  "key_cols": [
+                    "Sale Key",
+                    "Invoice Date Key"
+                  ],
                   "ignored": [
                     {
                       "column": "Sale Key",
-                      "reason": "Identity key handed out by SQL Server. Identity numbers are not rolled back, so two runs of the legacy job on the same input give different keys. Every other column of these rows is still compared."
+                      "reason": "identity column: SQL Server gives new rows the next number, and a rollback doesn't hand numbers back, so two runs on the same input get different values"
                     }
                   ],
                   "rows_legacy": 228265,
-                  "rows_spark": null,
-                  "result": null
+                  "rows_spark": 228265,
+                  "rows_changed_by_legacy": 6143,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Bill To Customer Key",
+                      "City Key",
+                      "Customer Key",
+                      "Delivery Date Key",
+                      "Description",
+                      "Invoice Date Key",
+                      "Lineage Key",
+                      "Package",
+                      "Profit",
+                      "Quantity",
+                      "Salesperson Key",
+                      "Stock Item Key",
+                      "Tax Amount",
+                      "Tax Rate",
+                      "Total Chiller Items",
+                      "Total Dry Items",
+                      "Total Excluding Tax",
+                      "Total Including Tax",
+                      "Unit Price",
+                      "WWI Invoice ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "pass",
+                      "detail": "All 222,122 rows the old job left alone came out of the new code identical, ignored columns included."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.ETL Cutoff",
+                  "key_cols": [
+                    "Table Name"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 14,
+                  "rows_spark": 14,
+                  "rows_changed_by_legacy": 1,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Cutoff Time",
+                      "Table Name"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
                 },
                 {
                   "table": "Integration.Lineage",
@@ -109,167 +725,113 @@
                   "ignored": [
                     {
                       "column": "Data Load Completed",
-                      "reason": "Set to SYSDATETIME(), the clock time the job ran. It differs on every run, legacy or Spark."
+                      "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
                     }
                   ],
-                  "rows_legacy": 15,
-                  "rows_spark": null,
-                  "result": null
+                  "rows_legacy": 29,
+                  "rows_spark": 29,
+                  "rows_changed_by_legacy": 1,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Data Load Started",
+                      "Lineage Key",
+                      "Source System Cutoff Time",
+                      "Table Name",
+                      "Was Successful"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "pass",
+                      "detail": "All 28 rows the old job left alone came out of the new code identical, ignored columns included."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
                 },
                 {
-                  "table": "Integration.ETL Cutoff",
+                  "table": "Integration.Sale_Staging",
                   "key_cols": [
-                    "Table Name"
+                    "Sale Staging Key"
                   ],
                   "ignored": [],
-                  "rows_legacy": 14,
-                  "rows_spark": null,
-                  "result": null
-                },
-                {
-                  "table": "Dimension.City",
-                  "key_cols": null,
-                  "ignored": [],
-                  "rows_legacy": 116295,
-                  "rows_spark": null,
-                  "result": null
-                },
-                {
-                  "table": "Dimension.Customer",
-                  "key_cols": [
-                    "Customer Key"
-                  ],
-                  "ignored": [],
-                  "rows_legacy": 403,
-                  "rows_spark": null,
-                  "result": null
-                },
-                {
-                  "table": "Dimension.Employee",
-                  "key_cols": [
-                    "Employee Key"
-                  ],
-                  "ignored": [],
-                  "rows_legacy": 213,
-                  "rows_spark": null,
-                  "result": null
-                },
-                {
-                  "table": "Dimension.Stock Item",
-                  "key_cols": [
-                    "Stock Item Key"
-                  ],
-                  "ignored": [],
-                  "rows_legacy": 672,
-                  "rows_spark": null,
-                  "result": null
+                  "rows_legacy": 6143,
+                  "rows_spark": 6143,
+                  "rows_changed_by_legacy": 6143,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Bill To Customer Key",
+                      "City Key",
+                      "Customer Key",
+                      "Delivery Date Key",
+                      "Description",
+                      "Invoice Date Key",
+                      "Last Modified When",
+                      "Package",
+                      "Profit",
+                      "Quantity",
+                      "Sale Staging Key",
+                      "Salesperson Key",
+                      "Stock Item Key",
+                      "Tax Amount",
+                      "Tax Rate",
+                      "Total Chiller Items",
+                      "Total Dry Items",
+                      "Total Excluding Tax",
+                      "Total Including Tax",
+                      "Unit Price",
+                      "WWI Bill To Customer ID",
+                      "WWI City ID",
+                      "WWI Customer ID",
+                      "WWI Invoice ID",
+                      "WWI Salesperson ID",
+                      "WWI Stock Item ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
                 }
-              ]
-            },
-            "holdout": null
+              ],
+              "seconds": 20.501,
+              "legacy_seconds": 1.747,
+              "window": "Staged 2015-06-20 to 2015-07-20, 6,143 staged rows",
+              "stability_probe": "Staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table (2026-11-04 21:28:31). Only columns that differed between those two runs may be ignored."
+            }
           }
-        }
-      ],
-      "lineage": [
-        {
-          "table": "Integration.Sale_Staging",
-          "column": "City Key",
-          "sources": [
-            "Dimension.City.City Key",
-            "Integration.Sale_Staging.WWI City ID",
-            "Integration.Sale_Staging.Last Modified When"
-          ],
-          "rule": "Looks up Dimension.City by WWI City ID, picking the version that was valid when the sale was last modified (earliest Valid From wins). No match gives 0, meaning 'unknown'. Key column: City Key."
-        },
-        {
-          "table": "Integration.Sale_Staging",
-          "column": "Customer Key",
-          "sources": [
-            "Dimension.Customer.Customer Key",
-            "Integration.Sale_Staging.WWI Customer ID",
-            "Integration.Sale_Staging.Last Modified When"
-          ],
-          "rule": "Looks up Dimension.Customer by WWI Customer ID, picking the version that was valid when the sale was last modified (earliest Valid From wins). No match gives 0, meaning 'unknown'. Key column: Customer Key."
-        },
-        {
-          "table": "Integration.Sale_Staging",
-          "column": "Bill To Customer Key",
-          "sources": [
-            "Dimension.Customer.Customer Key",
-            "Integration.Sale_Staging.WWI Bill To Customer ID",
-            "Integration.Sale_Staging.Last Modified When"
-          ],
-          "rule": "Looks up Dimension.Customer by WWI Bill To Customer ID, picking the version that was valid when the sale was last modified (earliest Valid From wins). No match gives 0, meaning 'unknown'. Key column: Customer Key."
-        },
-        {
-          "table": "Integration.Sale_Staging",
-          "column": "Stock Item Key",
-          "sources": [
-            "Dimension.Stock Item.Stock Item Key",
-            "Integration.Sale_Staging.WWI Stock Item ID",
-            "Integration.Sale_Staging.Last Modified When"
-          ],
-          "rule": "Looks up Dimension.Stock Item by WWI Stock Item ID, picking the version that was valid when the sale was last modified (earliest Valid From wins). No match gives 0, meaning 'unknown'. Key column: Stock Item Key."
-        },
-        {
-          "table": "Integration.Sale_Staging",
-          "column": "Salesperson Key",
-          "sources": [
-            "Dimension.Employee.Employee Key",
-            "Integration.Sale_Staging.WWI Salesperson ID",
-            "Integration.Sale_Staging.Last Modified When"
-          ],
-          "rule": "Looks up Dimension.Employee by WWI Salesperson ID, picking the version that was valid when the sale was last modified (earliest Valid From wins). No match gives 0, meaning 'unknown'. Key column: Employee Key."
-        },
-        {
-          "table": "Fact.Sale",
-          "column": "Sale Key",
-          "sources": [],
-          "rule": "New identity number from SQL Server for each inserted row."
-        },
-        {
-          "table": "Fact.Sale",
-          "column": "City Key, Customer Key, Bill To Customer Key, Stock Item Key, Salesperson Key",
-          "sources": [
-            "Integration.Sale_Staging (same columns, after the lookups above)"
-          ],
-          "rule": "Copied from staging after the key lookups. Rows for every staged invoice are deleted first, then reinserted."
-        },
-        {
-          "table": "Fact.Sale",
-          "column": "Invoice Date Key ... Total Chiller Items (14 columns)",
-          "sources": [
-            "Integration.Sale_Staging (same columns)"
-          ],
-          "rule": "Copied straight from staging."
-        },
-        {
-          "table": "Fact.Sale",
-          "column": "Lineage Key",
-          "sources": [
-            "Integration.Lineage.Lineage Key"
-          ],
-          "rule": "The newest Lineage row for 'Sale' that has no Data Load Completed yet."
-        },
-        {
-          "table": "Integration.Lineage",
-          "column": "Data Load Completed",
-          "sources": [],
-          "rule": "SYSDATETIME() on that one lineage row: the clock time the job finished."
-        },
-        {
-          "table": "Integration.Lineage",
-          "column": "Was Successful",
-          "sources": [],
-          "rule": "Set to 1 on that one lineage row."
-        },
-        {
-          "table": "Integration.ETL Cutoff",
-          "column": "Cutoff Time",
-          "sources": [
-            "Integration.Lineage.Source System Cutoff Time"
-          ],
-          "rule": "Copied from the lineage row, on the 'Sale' row only."
         }
       ]
     },
@@ -279,10 +841,220 @@
       "proc": "Integration.MigrateStagedCityData",
       "source_file": "legacy_jobs/wwi/MigrateStagedCityData.sql",
       "summary": "Closes off the current version of each changed city and inserts the new versions, keeping the full history.",
-      "status": "not_started",
+      "status": "in_progress",
+      "stop_reason": "Matches on dev data. Holdout data hasn't been prepared for this job yet.",
       "max_attempts": null,
       "legacy_sql": "\nCREATE PROCEDURE Integration.MigrateStagedCityData\nWITH EXECUTE AS OWNER\nAS\nBEGIN\n    SET NOCOUNT ON;\n    SET XACT_ABORT ON;\n\n    DECLARE @EndOfTime datetime2(7) =  '99991231 23:59:59.9999999';\n\n    BEGIN TRAN;\n\n    DECLARE @LineageKey int = (SELECT TOP(1) [Lineage Key]\n                               FROM Integration.Lineage\n                               WHERE [Table Name] = N'City'\n                               AND [Data Load Completed] IS NULL\n                               ORDER BY [Lineage Key] DESC);\n\n    WITH RowsToCloseOff\n    AS\n    (\n        SELECT c.[WWI City ID], MIN(c.[Valid From]) AS [Valid From]\n        FROM Integration.City_Staging AS c\n        GROUP BY c.[WWI City ID]\n    )\n    UPDATE c\n        SET c.[Valid To] = rtco.[Valid From]\n    FROM Dimension.City AS c\n    INNER JOIN RowsToCloseOff AS rtco\n    ON c.[WWI City ID] = rtco.[WWI City ID]\n    WHERE c.[Valid To] = @EndOfTime;\n\n    INSERT Dimension.City\n        ([WWI City ID], City, [State Province], Country, Continent,\n         [Sales Territory], Region, Subregion, [Location],\n         [Latest Recorded Population], [Valid From], [Valid To],\n         [Lineage Key])\n    SELECT [WWI City ID], City, [State Province], Country, Continent,\n           [Sales Territory], Region, Subregion, [Location],\n           [Latest Recorded Population], [Valid From], [Valid To],\n           @LineageKey\n    FROM Integration.City_Staging;\n\n    UPDATE Integration.Lineage\n        SET [Data Load Completed] = SYSDATETIME(),\n            [Was Successful] = 1\n    WHERE [Lineage Key] = @LineageKey;\n\n    UPDATE Integration.[ETL Cutoff]\n        SET [Cutoff Time] = (SELECT [Source System Cutoff Time]\n                             FROM Integration.Lineage\n                             WHERE [Lineage Key] = @LineageKey)\n    FROM Integration.[ETL Cutoff]\n    WHERE [Table Name] = N'City';\n\n    COMMIT;\n\n    RETURN 0;\nEND;\n",
-      "attempts": []
+      "attempts": [
+        {
+          "number": 1,
+          "started_at": null,
+          "seconds": 15.4,
+          "code": "from pyspark.sql import functions as F\nfrom pyspark.sql import Window\n\n\ndef run(spark, tables):\n    city = tables[\"Dimension.City\"]\n    staging = tables[\"Integration.City_Staging\"]\n    cutoff = tables[\"Integration.ETL Cutoff\"]\n    lineage = tables[\"Integration.Lineage\"]\n\n    # @LineageKey\n    lk_row = (\n        lineage.filter((F.col(\"Table Name\") == F.lit(\"City\")) & F.col(\"Data Load Completed\").isNull())\n        .orderBy(F.col(\"Lineage Key\").desc())\n        .select(\"Lineage Key\")\n        .limit(1)\n        .collect()\n    )\n    lineage_key = lk_row[0][0] if lk_row else None\n\n    end_of_time = F.to_timestamp(F.lit(\"9999-12-31 23:59:59.999999\"))\n\n    # Close off current rows\n    rtco = staging.groupBy(\"WWI City ID\").agg(F.min(\"Valid From\").alias(\"__rtco_vf\"))\n    c = city.join(rtco, on=\"WWI City ID\", how=\"left\")\n    cond = F.col(\"__rtco_vf\").isNotNull() & (F.col(\"Valid To\") >= end_of_time)\n    city_cols = city.columns\n    updated = c.select(\n        *[\n            (F.when(cond, F.col(\"__rtco_vf\")).otherwise(F.col(\"Valid To\")).alias(\"Valid To\"))\n            if col == \"Valid To\"\n            else F.col(col)\n            for col in city_cols\n        ]\n    )\n\n    # Insert new rows with generated keys\n    max_key_row = city.agg(F.max(\"City Key\")).collect()\n    max_key = max_key_row[0][0] if max_key_row and max_key_row[0][0] is not None else 0\n    w = Window.orderBy(F.col(\"City Staging Key\"))\n    lk_lit = F.lit(lineage_key).cast(city.schema[\"Lineage Key\"].dataType)\n    new_rows = staging.withColumn(\"__rn\", F.row_number().over(w)).select(\n        *[\n            (\n                (F.lit(max_key) + F.col(\"__rn\")).cast(city.schema[\"City Key\"].dataType).alias(\"City Key\")\n                if col == \"City Key\"\n                else lk_lit.alias(\"Lineage Key\")\n                if col == \"Lineage Key\"\n                else F.col(col).cast(city.schema[col].dataType).alias(col)\n            )\n            for col in city_cols\n        ]\n    )\n    new_city = updated.unionByName(new_rows)\n\n    # Update lineage\n    now = F.current_timestamp()\n    if lineage_key is not None:\n        is_lk = F.col(\"Lineage Key\") == F.lit(lineage_key)\n        new_lineage = lineage.select(\n            *[\n                (F.when(is_lk, now).otherwise(F.col(col)).cast(lineage.schema[col].dataType).alias(col))\n                if col == \"Data Load Completed\"\n                else (F.when(is_lk, F.lit(True)).otherwise(F.col(col)).cast(\"boolean\").alias(col))\n                if col == \"Was Successful\"\n                else F.col(col)\n                for col in lineage.columns\n            ]\n        )\n        sc_row = (\n            lineage.filter(F.col(\"Lineage Key\") == F.lit(lineage_key))\n            .select(\"Source System Cutoff Time\")\n            .collect()\n        )\n        source_cutoff = sc_row[0][0] if sc_row else None\n    else:\n        new_lineage = lineage\n        source_cutoff = None\n\n    # Update ETL Cutoff\n    cut_type = cutoff.schema[\"Cutoff Time\"].dataType\n    new_cutoff = cutoff.select(\n        *[\n            (\n                F.when(F.col(\"Table Name\") == F.lit(\"City\"), F.lit(source_cutoff).cast(\"timestamp\"))\n                .otherwise(F.col(col))\n                .cast(cut_type if str(cut_type) != \"NullType()\" else \"timestamp\")\n                .alias(col)\n            )\n            if col == \"Cutoff Time\"\n            else F.col(col)\n            for col in cutoff.columns\n        ]\n    )\n\n    return {\n        \"Dimension.City\": new_city,\n        \"Integration.Lineage\": new_lineage,\n        \"Integration.ETL Cutoff\": new_cutoff,\n    }\n",
+          "error": null,
+          "error_stage": null,
+          "feedback": null,
+          "note": null,
+          "runs": {
+            "dev": {
+              "tables": [
+                {
+                  "table": "Dimension.City",
+                  "key_cols": [
+                    "City Key"
+                  ],
+                  "ignored": [
+                    {
+                      "column": "City Key",
+                      "reason": "differs between two runs of the legacy job on the same input"
+                    }
+                  ],
+                  "rows_legacy": 125923,
+                  "rows_spark": 125923,
+                  "rows_changed_by_legacy": 19256,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "City",
+                      "Continent",
+                      "Country",
+                      "Latest Recorded Population",
+                      "Lineage Key",
+                      "Location",
+                      "Region",
+                      "Sales Territory",
+                      "State Province",
+                      "Subregion",
+                      "Valid From",
+                      "Valid To",
+                      "WWI City ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "pass",
+                      "detail": "All 106,667 rows the old job left alone came out of the new code identical, ignored columns included."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.City_Staging",
+                  "key_cols": [
+                    "City Staging Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 9628,
+                  "rows_spark": 9628,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "City",
+                      "City Staging Key",
+                      "Continent",
+                      "Country",
+                      "Latest Recorded Population",
+                      "Location",
+                      "Region",
+                      "Sales Territory",
+                      "State Province",
+                      "Subregion",
+                      "Valid From",
+                      "Valid To",
+                      "WWI City ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.ETL Cutoff",
+                  "key_cols": [
+                    "Table Name"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 14,
+                  "rows_spark": 14,
+                  "rows_changed_by_legacy": 1,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Cutoff Time",
+                      "Table Name"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.Lineage",
+                  "key_cols": [
+                    "Lineage Key"
+                  ],
+                  "ignored": [
+                    {
+                      "column": "Data Load Completed",
+                      "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+                    }
+                  ],
+                  "rows_legacy": 15,
+                  "rows_spark": 15,
+                  "rows_changed_by_legacy": 1,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Data Load Started",
+                      "Lineage Key",
+                      "Source System Cutoff Time",
+                      "Table Name",
+                      "Was Successful"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "pass",
+                      "detail": "All 14 rows the old job left alone came out of the new code identical, ignored columns included."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                }
+              ],
+              "seconds": 14.85,
+              "legacy_seconds": 0.508,
+              "window": "Staged 2015-06-06 to 2015-07-06, 9,628 staged rows",
+              "stability_probe": "Staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table (2026-11-04 21:21:14). Only columns that differed between those two runs may be ignored."
+            },
+            "holdout": null
+          }
+        }
+      ]
     },
     {
       "id": "movement",
@@ -290,10 +1062,739 @@
       "proc": "Integration.MigrateStagedMovementData",
       "source_file": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
       "summary": "Looks up four dimension keys, then MERGEs stock movements into Fact.Movement: update the ones that exist, insert the rest.",
-      "status": "not_started",
+      "status": "failed",
+      "stop_reason": "First attempt, no retry yet: the retry loop (loop.py) isn't built, so nothing was sent back to the AI.",
       "max_attempts": null,
       "legacy_sql": "\nCREATE PROCEDURE Integration.MigrateStagedMovementData\nWITH EXECUTE AS OWNER\nAS\nBEGIN\n    SET NOCOUNT ON;\n    SET XACT_ABORT ON;\n\n    BEGIN TRAN;\n\n    DECLARE @LineageKey int = (SELECT TOP(1) [Lineage Key]\n                               FROM Integration.Lineage\n                               WHERE [Table Name] = N'Movement'\n                               AND [Data Load Completed] IS NULL\n                               ORDER BY [Lineage Key] DESC);\n\n    -- Find the dimension keys required\n\n    UPDATE m\n        SET m.[Stock Item Key] = COALESCE((SELECT TOP(1) si.[Stock Item Key]\n                                           FROM Dimension.[Stock Item] AS si\n                                           WHERE si.[WWI Stock Item ID] = m.[WWI Stock Item ID]\n                                           AND m.[Last Modifed When] > si.[Valid From]\n                                           AND m.[Last Modifed When] <= si.[Valid To]\n\t\t\t\t\t\t\t\t\t       ORDER BY si.[Valid From]), 0),\n            m.[Customer Key] = COALESCE((SELECT TOP(1) c.[Customer Key]\n                                         FROM Dimension.Customer AS c\n                                         WHERE c.[WWI Customer ID] = m.[WWI Customer ID]\n                                         AND m.[Last Modifed When] > c.[Valid From]\n                                         AND m.[Last Modifed When] <= c.[Valid To]\n\t\t\t\t\t\t\t\t\t     ORDER BY c.[Valid From]), 0),\n            m.[Supplier Key] = COALESCE((SELECT TOP(1) s.[Supplier Key]\n                                         FROM Dimension.Supplier AS s\n                                         WHERE s.[WWI Supplier ID] = m.[WWI Supplier ID]\n                                         AND m.[Last Modifed When] > s.[Valid From]\n                                         AND m.[Last Modifed When] <= s.[Valid To]\n\t\t\t\t\t\t\t\t\t     ORDER BY s.[Valid From]), 0),\n            m.[Transaction Type Key] = COALESCE((SELECT TOP(1) tt.[Transaction Type Key]\n                                                 FROM Dimension.[Transaction Type] AS tt\n                                                 WHERE tt.[WWI Transaction Type ID] = m.[WWI Transaction Type ID]\n                                                 AND m.[Last Modifed When] > tt.[Valid From]\n                                                 AND m.[Last Modifed When] <= tt.[Valid To]\n\t\t\t\t\t\t\t\t\t             ORDER BY tt.[Valid From]), 0)\n    FROM Integration.Movement_Staging AS m;\n\n    -- Merge the data into the fact table\n\n    MERGE Fact.Movement AS m\n    USING Integration.Movement_Staging AS ms\n    ON m.[WWI Stock Item Transaction ID] = ms.[WWI Stock Item Transaction ID]\n    WHEN MATCHED THEN\n        UPDATE SET m.[Date Key] = ms.[Date Key],\n                   m.[Stock Item Key] = ms.[Stock Item Key],\n                   m.[Customer Key] = ms.[Customer Key],\n                   m.[Supplier Key] = ms.[Supplier Key],\n                   m.[Transaction Type Key] = ms.[Transaction Type Key],\n                   m.[WWI Invoice ID] = ms.[WWI Invoice ID],\n                   m.[WWI Purchase Order ID] = ms.[WWI Purchase Order ID],\n                   m.Quantity = ms.Quantity,\n                   m.[Lineage Key] = @LineageKey\n    WHEN NOT MATCHED THEN\n        INSERT ([Date Key], [Stock Item Key], [Customer Key], [Supplier Key], [Transaction Type Key],\n                [WWI Stock Item Transaction ID], [WWI Invoice ID], [WWI Purchase Order ID], Quantity, [Lineage Key])\n        VALUES (ms.[Date Key], ms.[Stock Item Key], ms.[Customer Key], ms.[Supplier Key], ms.[Transaction Type Key],\n                ms.[WWI Stock Item Transaction ID], ms.[WWI Invoice ID], ms.[WWI Purchase Order ID], ms.Quantity, @LineageKey);\n\n    UPDATE Integration.Lineage\n        SET [Data Load Completed] = SYSDATETIME(),\n            [Was Successful] = 1\n    WHERE [Lineage Key] = @LineageKey;\n\n    UPDATE Integration.[ETL Cutoff]\n        SET [Cutoff Time] = (SELECT [Source System Cutoff Time]\n                             FROM Integration.Lineage\n                             WHERE [Lineage Key] = @LineageKey)\n    FROM Integration.[ETL Cutoff]\n    WHERE [Table Name] = N'Movement';\n\n    COMMIT;\n\n    RETURN 0;\nEND;\n",
-      "attempts": []
+      "attempts": [
+        {
+          "number": 1,
+          "started_at": null,
+          "seconds": 25.2,
+          "code": "from pyspark.sql import functions as F\nfrom pyspark.sql import Window\n\n\ndef run(spark, tables):\n    lineage = tables[\"Integration.Lineage\"]\n    cutoff = tables[\"Integration.ETL Cutoff\"]\n    staging = tables[\"Integration.Movement_Staging\"]\n    fact = tables[\"Fact.Movement\"]\n\n    staging_cols = staging.columns\n    fact_cols = fact.columns\n    lineage_cols = lineage.columns\n    cutoff_cols = cutoff.columns\n\n    # @LineageKey\n    lk_row = (lineage\n              .filter((F.col(\"Table Name\") == F.lit(\"Movement\")) & F.col(\"Data Load Completed\").isNull())\n              .agg(F.max(F.col(\"Lineage Key\")).alias(\"lk\"))\n              .collect())\n    lineage_key = lk_row[0][\"lk\"] if lk_row else None\n\n    # ---- Update staging dimension keys ----\n    m = staging.withColumn(\"_rid\", F.monotonically_increasing_id())\n\n    def lookup(m, dim, dim_id_col, m_id_col, key_col, target_col):\n        d = dim.select(\n            F.col(dim_id_col).alias(\"_did\"),\n            F.col(\"Valid From\").alias(\"_vf\"),\n            F.col(\"Valid To\").alias(\"_vt\"),\n            F.col(key_col).alias(\"_k\"),\n        )\n        mm = m.select(\n            \"_rid\",\n            F.col(m_id_col).alias(\"_mid\"),\n            F.col(\"Last Modifed When\").alias(\"_lmw\"),\n        )\n        j = mm.join(\n            d,\n            (F.col(\"_did\") == F.col(\"_mid\"))\n            & (F.col(\"_lmw\") > F.col(\"_vf\"))\n            & (F.col(\"_lmw\") <= F.col(\"_vt\")),\n            \"inner\",\n        )\n        w = Window.partitionBy(\"_rid\").orderBy(F.col(\"_vf\").asc(), F.col(\"_k\").asc())\n        r = (j.withColumn(\"_rn\", F.row_number().over(w))\n               .filter(F.col(\"_rn\") == 1)\n               .select(\"_rid\", F.col(\"_k\").alias(\"_newkey\")))\n        m = (m.join(r, \"_rid\", \"left\")\n               .withColumn(target_col, F.coalesce(F.col(\"_newkey\"), F.lit(0)).cast(\"long\"))\n               .drop(\"_newkey\"))\n        return m\n\n    m = lookup(m, tables[\"Dimension.Stock Item\"], \"WWI Stock Item ID\", \"WWI Stock Item ID\",\n               \"Stock Item Key\", \"Stock Item Key\")\n    m = lookup(m, tables[\"Dimension.Customer\"], \"WWI Customer ID\", \"WWI Customer ID\",\n               \"Customer Key\", \"Customer Key\")\n    m = lookup(m, tables[\"Dimension.Supplier\"], \"WWI Supplier ID\", \"WWI Supplier ID\",\n               \"Supplier Key\", \"Supplier Key\")\n    m = lookup(m, tables[\"Dimension.Transaction Type\"], \"WWI Transaction Type ID\", \"WWI Transaction Type ID\",\n               \"Transaction Type Key\", \"Transaction Type Key\")\n\n    new_staging = m.select(*[F.col(c) for c in staging_cols])\n\n    # ---- MERGE into Fact.Movement ----\n    lk_lit = F.lit(lineage_key).cast(\"long\")\n    upd_cols = [\"Date Key\", \"Stock Item Key\", \"Customer Key\", \"Supplier Key\",\n                \"Transaction Type Key\", \"WWI Invoice ID\", \"WWI Purchase Order ID\", \"Quantity\"]\n\n    s = new_staging.select(\n        F.col(\"WWI Stock Item Transaction ID\").alias(\"_s_tid\"),\n        *[F.col(c).alias(\"_s_\" + c) for c in upd_cols],\n        F.lit(1).alias(\"_matched\"),\n    )\n\n    t = fact.join(s, fact[\"WWI Stock Item Transaction ID\"] == s[\"_s_tid\"], \"left\")\n    matched = F.col(\"_matched\").isNotNull()\n    sel = []\n    for c in fact_cols:\n        if c in upd_cols:\n            sel.append(F.when(matched, F.col(\"_s_\" + c)).otherwise(F.col(c)).cast(fact.schema[c].dataType).alias(c))\n        elif c == \"Lineage Key\":\n            sel.append(F.when(matched, lk_lit).otherwise(F.col(c)).cast(\"long\").alias(c))\n        else:\n            sel.append(F.col(c))\n    updated_fact = t.select(*sel)\n\n    fact_ids = fact.select(F.col(\"WWI Stock Item Transaction ID\").alias(\"_f_tid\"))\n    to_insert = new_staging.join(\n        fact_ids,\n        new_staging[\"WWI Stock Item Transaction ID\"] == fact_ids[\"_f_tid\"],\n        \"left_anti\",\n    )\n\n    max_key_row = fact.agg(F.max(F.col(\"Movement Key\")).alias(\"mk\")).collect()\n    max_key = max_key_row[0][\"mk\"] if max_key_row and max_key_row[0][\"mk\"] is not None else 0\n\n    w_ins = Window.orderBy(F.col(\"Movement Staging Key\").asc(), F.col(\"WWI Stock Item Transaction ID\").asc())\n    inserted = to_insert.withColumn(\"_rn\", F.row_number().over(w_ins))\n    ins_sel = []\n    for c in fact_cols:\n        dt = fact.schema[c].dataType\n        if c == \"Movement Key\":\n            ins_sel.append((F.lit(max_key) + F.col(\"_rn\")).cast(dt).alias(c))\n        elif c == \"Lineage Key\":\n            ins_sel.append(lk_lit.cast(dt).alias(c))\n        else:\n            ins_sel.append(F.col(c).cast(dt).alias(c))\n    inserted = inserted.select(*ins_sel)\n\n    new_fact = updated_fact.unionByName(inserted)\n\n    # ---- Update Lineage ----\n    is_lk = (F.col(\"Lineage Key\") == lk_lit) if lineage_key is not None else F.lit(False)\n    lsel = []\n    for c in lineage_cols:\n        if c == \"Data Load Completed\":\n            lsel.append(F.when(is_lk, F.current_timestamp().cast(\"timestamp\")).otherwise(F.col(c)).alias(c))\n        elif c == \"Was Successful\":\n            lsel.append(F.when(is_lk, F.lit(True)).otherwise(F.col(c)).cast(\"boolean\").alias(c))\n        else:\n            lsel.append(F.col(c))\n    new_lineage = lineage.select(*lsel)\n\n    # ---- Update ETL Cutoff ----\n    cutoff_val = None\n    if lineage_key is not None:\n        rows = (lineage.filter(F.col(\"Lineage Key\") == lk_lit)\n                       .select(\"Source System Cutoff Time\").limit(1).collect())\n        if rows:\n            cutoff_val = rows[0][0]\n    csel = []\n    for c in cutoff_cols:\n        if c == \"Cutoff Time\":\n            csel.append(\n                F.when(F.col(\"Table Name\") == F.lit(\"Movement\"), F.lit(cutoff_val).cast(\"timestamp\"))\n                 .otherwise(F.col(c)).alias(c)\n            )\n        else:\n            csel.append(F.col(c))\n    new_cutoff = cutoff.select(*csel)\n\n    return {\n        \"Integration.Movement_Staging\": new_staging,\n        \"Fact.Movement\": new_fact,\n        \"Integration.Lineage\": new_lineage,\n        \"Integration.ETL Cutoff\": new_cutoff,\n    }\n",
+          "error": null,
+          "error_stage": null,
+          "feedback": null,
+          "note": "The MERGE itself is right: all 5,053 updated movement rows match. The failure is one realistic mistake. The code casts timestamps with .cast(\"timestamp\"), which in Spark means a moment in time with a time zone. SQL Server's datetime2 has no time zone (Spark calls that timestamp_ntz). The values are the same moment, but the column changed type: 2016-06-06 12:31:17 came back as 2016-06-06 12:31:17+00:00. A downstream report would now apply time zone rules to it, so it counts as a real failure. The Sale translation avoided it by casting to the input column's own type.",
+          "runs": {
+            "dev": {
+              "tables": [
+                {
+                  "table": "Dimension.Customer",
+                  "key_cols": [
+                    "Customer Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 403,
+                  "rows_spark": 403,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Bill To Customer",
+                      "Buying Group",
+                      "Category",
+                      "Customer",
+                      "Customer Key",
+                      "Lineage Key",
+                      "Postal Code",
+                      "Primary Contact",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Customer ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Stock Item",
+                  "key_cols": [
+                    "Stock Item Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 672,
+                  "rows_spark": 672,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Barcode",
+                      "Brand",
+                      "Buying Package",
+                      "Color",
+                      "Is Chiller Stock",
+                      "Lead Time Days",
+                      "Lineage Key",
+                      "Photo",
+                      "Quantity Per Outer",
+                      "Recommended Retail Price",
+                      "Selling Package",
+                      "Size",
+                      "Stock Item",
+                      "Stock Item Key",
+                      "Tax Rate",
+                      "Typical Weight Per Unit",
+                      "Unit Price",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Stock Item ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Supplier",
+                  "key_cols": [
+                    "Supplier Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 28,
+                  "rows_spark": 28,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Category",
+                      "Lineage Key",
+                      "Payment Days",
+                      "Postal Code",
+                      "Primary Contact",
+                      "Supplier",
+                      "Supplier Key",
+                      "Supplier Reference",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Supplier ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Dimension.Transaction Type",
+                  "key_cols": [
+                    "Transaction Type Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 15,
+                  "rows_spark": 15,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Lineage Key",
+                      "Transaction Type",
+                      "Transaction Type Key",
+                      "Valid From",
+                      "Valid To",
+                      "WWI Transaction Type ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Fact.Movement",
+                  "key_cols": [
+                    "Movement Key",
+                    "Date Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 236667,
+                  "rows_spark": 236667,
+                  "rows_changed_by_legacy": 5053,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Customer Key",
+                      "Date Key",
+                      "Lineage Key",
+                      "Movement Key",
+                      "Quantity",
+                      "Stock Item Key",
+                      "Supplier Key",
+                      "Transaction Type Key",
+                      "WWI Invoice ID",
+                      "WWI Purchase Order ID",
+                      "WWI Stock Item Transaction ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.ETL Cutoff",
+                  "key_cols": [
+                    "Table Name"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 14,
+                  "rows_spark": 14,
+                  "rows_changed_by_legacy": 0,
+                  "result": {
+                    "status": "fail",
+                    "compared_cols": [
+                      "Cutoff Time",
+                      "Table Name"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": {
+                      "cols_only_a": [],
+                      "cols_only_b": [],
+                      "rows_only_a": [],
+                      "rows_only_b": [],
+                      "dupes_a": [],
+                      "dupes_b": [],
+                      "changed": [
+                        {
+                          "key": [
+                            "City"
+                          ],
+                          "col": "Cutoff Time",
+                          "a": "2016-06-06 12:31:17",
+                          "b": "2016-06-06 12:31:17+00:00"
+                        },
+                        {
+                          "key": [
+                            "Customer"
+                          ],
+                          "col": "Cutoff Time",
+                          "a": "2016-06-06 12:31:17",
+                          "b": "2016-06-06 12:31:17+00:00"
+                        },
+                        {
+                          "key": [
+                            "Date"
+                          ],
+                          "col": "Cutoff Time",
+                          "a": "2012-12-31 00:00:00",
+                          "b": "2012-12-31 00:00:00+00:00"
+                        },
+                        {
+                          "key": [
+                            "Employee"
+                          ],
+                          "col": "Cutoff Time",
+                          "a": "2016-06-06 12:31:17",
+                          "b": "2016-06-06 12:31:17+00:00"
+                        },
+                        {
+                          "key": [
+                            "Movement"
+                          ],
+                          "col": "Cutoff Time",
+                          "a": "2016-06-06 12:31:17",
+                          "b": "2016-06-06 12:31:17+00:00"
+                        }
+                      ]
+                    }
+                  },
+                  "counts": {
+                    "only_a": 14,
+                    "only_b": 14,
+                    "changed": 14
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.Lineage",
+                  "key_cols": [
+                    "Lineage Key"
+                  ],
+                  "ignored": [
+                    {
+                      "column": "Data Load Completed",
+                      "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs"
+                    }
+                  ],
+                  "rows_legacy": 16,
+                  "rows_spark": 16,
+                  "rows_changed_by_legacy": 1,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Data Load Started",
+                      "Lineage Key",
+                      "Source System Cutoff Time",
+                      "Table Name",
+                      "Was Successful"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "ignored_columns_filled",
+                      "status": "pass",
+                      "detail": "Ignored columns still had to be filled in (or empty) on exactly the same rows as the old output. Only their values were skipped."
+                    },
+                    {
+                      "name": "untouched_rows",
+                      "status": "fail",
+                      "detail": "Of the 15 rows the old job left alone, 13 are missing or changed in the new output (checked with ignored columns included)."
+                    },
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                },
+                {
+                  "table": "Integration.Movement_Staging",
+                  "key_cols": [
+                    "Movement Staging Key"
+                  ],
+                  "ignored": [],
+                  "rows_legacy": 5053,
+                  "rows_spark": 5053,
+                  "rows_changed_by_legacy": 5053,
+                  "result": {
+                    "status": "pass",
+                    "compared_cols": [
+                      "Customer Key",
+                      "Date Key",
+                      "Last Modifed When",
+                      "Movement Staging Key",
+                      "Quantity",
+                      "Stock Item Key",
+                      "Supplier Key",
+                      "Transaction Type Key",
+                      "WWI Customer ID",
+                      "WWI Invoice ID",
+                      "WWI Purchase Order ID",
+                      "WWI Stock Item ID",
+                      "WWI Stock Item Transaction ID",
+                      "WWI Supplier ID",
+                      "WWI Transaction Type ID"
+                    ],
+                    "only_a": [],
+                    "only_b": [],
+                    "cols_only_a": [],
+                    "cols_only_b": [],
+                    "explanation": null
+                  },
+                  "counts": {
+                    "only_a": 0,
+                    "only_b": 0
+                  },
+                  "extra_checks": [
+                    {
+                      "name": "unique_key",
+                      "status": "pass",
+                      "detail": "No key value appears twice in the new output."
+                    }
+                  ]
+                }
+              ],
+              "seconds": 24.478,
+              "legacy_seconds": 0.744,
+              "window": "The month up to the ETL cutoff, 5,053 staged rows",
+              "stability_probe": "Staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table (2026-11-04 21:21:22). Only columns that differed between those two runs may be ignored."
+            },
+            "holdout": null
+          }
+        }
+      ]
     }
-  ]
+  ],
+  "checker_tests": {
+    "what": "Planted bugs in jobs_pyspark/sale.py, each run through run_spark.py and check.py",
+    "generated_at": "2026-11-04T21:44:52Z",
+    "job": "sale",
+    "bugs": [
+      {
+        "name": "real_translation",
+        "description": "the real AI translation, no planted bug",
+        "control": true,
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "outcome": "passes both, as it should",
+        "why": "Control. Must pass both, or the checker cries wolf."
+      },
+      {
+        "name": "changed_rows_only",
+        "description": "Fact.Sale returns only the inserted rows, not the whole table",
+        "control": false,
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "changed_columns": []
+            }
+          ]
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "changed_columns": []
+            }
+          ]
+        },
+        "outcome": "caught by dev",
+        "why": "Fact.Sale shrinks from 228,265 rows to the few thousand reloaded ones."
+      },
+      {
+        "name": "default_decimal",
+        "description": "Money columns cast with Spark's default decimal(10,0), losing the cents",
+        "control": false,
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": []
+            }
+          ]
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": []
+            }
+          ]
+        },
+        "outcome": "caught by dev",
+        "why": "39,717 sale lines have cents in the unit price; decimal(10,0) rounds them away."
+      },
+      {
+        "name": "forget_cutoff",
+        "description": "The Integration.[ETL Cutoff] update is left out",
+        "control": false,
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Integration.ETL Cutoff",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": [
+                "Cutoff Time"
+              ]
+            }
+          ]
+        },
+        "outcome": "caught only by holdout",
+        "why": "On dev the job sets the cutoff to the value it already had, so skipping the update looks perfect. The holdout window moves the cutoff."
+      },
+      {
+        "name": "ge_valid_from",
+        "description": "Dimension lookups use >= instead of > on [Valid From]",
+        "control": false,
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "outcome": "caught by nothing",
+        "why": "No sale is stamped exactly at a version start, so >= and > always agree on this data (0 such lines in every month). Would catch it: a small boundary dataset with a sale at exactly a Valid From."
+      },
+      {
+        "name": "no_delete",
+        "description": "Old lines of reloaded invoices are not deleted before the new ones are inserted",
+        "control": false,
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "changed_columns": []
+            }
+          ]
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "untouched_rows",
+                "whole_rows"
+              ],
+              "changed_columns": []
+            }
+          ]
+        },
+        "outcome": "caught by dev",
+        "why": "Reloaded invoices appear twice: old lines plus new ones."
+      },
+      {
+        "name": "no_valid_to",
+        "description": "Dimension lookups forget the [Valid To] condition",
+        "control": false,
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": [
+                "City Key",
+                "Salesperson Key"
+              ]
+            }
+          ]
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": [
+                "City Key",
+                "Salesperson Key"
+              ]
+            }
+          ]
+        },
+        "outcome": "caught by dev",
+        "why": "Picks a customer's or product's oldest version instead of the one valid at sale time."
+      },
+      {
+        "name": "null_not_zero",
+        "description": "No matching dimension row gives NULL instead of 0 (COALESCE dropped)",
+        "control": false,
+        "dev": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": [
+                "Bill To Customer Key",
+                "Customer Key"
+              ]
+            }
+          ]
+        },
+        "holdout": {
+          "status": "fail",
+          "crashed": false,
+          "failed_tables": [
+            {
+              "table": "Fact.Sale",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": []
+            },
+            {
+              "table": "Integration.Sale_Staging",
+              "failed_checks": [
+                "whole_rows"
+              ],
+              "changed_columns": [
+                "Bill To Customer Key",
+                "Customer Key"
+              ]
+            }
+          ]
+        },
+        "outcome": "caught by dev",
+        "why": "Thousands of lookups find no dimension row in every window, so NULLs show up straight away."
+      },
+      {
+        "name": "tax_rate_scale",
+        "description": "Tax Rate written as decimal(18,2) instead of decimal(18,3)",
+        "control": false,
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "outcome": "caught by nothing",
+        "why": "Every tax rate is 15.000 or 10.000, and Python compares 15.000 == 15.00 as equal, so values match. Would catch it: comparing column types between after/ and spark/."
+      },
+      {
+        "name": "top1_desc",
+        "description": "TOP(1) ... ORDER BY [Valid From] taken in the wrong order (newest first)",
+        "control": false,
+        "dev": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "holdout": {
+          "status": "pass",
+          "crashed": false,
+          "failed_tables": []
+        },
+        "outcome": "caught by nothing",
+        "why": "776 dev lookups match two City versions, but in every case both have the same Valid From (a tie), and real version histories never overlap otherwise. So reversing the date order can never change a result here. Would catch it: only a dimension with overlapping date ranges, which is broken data."
+      }
+    ]
+  }
 }

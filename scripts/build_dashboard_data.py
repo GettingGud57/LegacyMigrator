@@ -1,12 +1,12 @@
 """
 build_dashboard_data.py: write the data files the dashboard reads.
 
-    dashboard/public/data/real.json      only results that really happened (see REAL_NOTES)
     dashboard/public/data/sample.json    a demo story with invented numbers, marked "sample": true
     dashboard/public/data/manifest.json  which files the dashboard offers, and which one opens first
 
-Both result files follow docs/results-contract.md. Once loop.py exists it writes its own
-results file and this script is only needed for the demo story.
+The real results (real.json) come from the test bench instead:
+    python scripts/test_bench_to_results.py --ref origin/claude/test-bench
+real_results() below is the older hand-written version, kept for reference and no longer written.
 
 Usage (from the repo root):
     python scripts/build_dashboard_data.py
@@ -688,12 +688,11 @@ def write(name, data):
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
-    write("real.json", real_results())
     write("sample.json", sample_results())
     write("manifest.json", {
-        "default": "sample",
+        "default": "real",
         "files": [
-            {"id": "sample", "label": "Demo story", "path": "sample.json"},
-            {"id": "real", "label": "Real runs", "path": "real.json"},
+            {"id": "real", "label": "Real runs (test bench)", "path": "real.json"},
+            {"id": "sample", "label": "Demo story (sample)", "path": "sample.json"},
         ],
     })

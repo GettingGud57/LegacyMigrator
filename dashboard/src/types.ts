@@ -14,6 +14,32 @@ export interface ResultsFile {
   notes?: string[];
   datasets: { dev: Dataset; holdout: Dataset };
   jobs: Job[];
+  /** Optional: bugs planted on purpose, to test whether the checker catches them. */
+  checker_tests?: CheckerTests;
+}
+
+export interface CheckerTests {
+  what: string;
+  generated_at: string;
+  job: string;
+  bugs: PlantedBug[];
+}
+
+export interface BugRun {
+  status: 'pass' | 'fail';
+  crashed: boolean;
+  failed_tables: { table: string; failed_checks: string[]; changed_columns: string[] }[];
+}
+
+export interface PlantedBug {
+  name: string;
+  description: string;
+  /** The unmodified translation, which must pass. */
+  control: boolean;
+  dev: BugRun;
+  holdout: BugRun;
+  outcome: string;
+  why: string;
 }
 
 export interface Dataset {
@@ -44,12 +70,19 @@ export interface Attempt {
   error: string | null;
   error_stage?: string | null;
   feedback?: string | null;
+  /** Optional human analysis of the attempt. Never sent to the AI. */
+  note?: string | null;
   runs: { dev: Run | null; holdout: Run | null };
 }
 
 export interface Run {
   tables: TableResult[];
   seconds?: number;
+  legacy_seconds?: number;
+  /** Which slice of data, in words, e.g. "Staged 2015-06-20 to 2015-07-20, 6,143 staged rows". */
+  window?: string;
+  /** How the ignored columns were shown to be unstable, e.g. "ran the legacy job twice". */
+  stability_probe?: string | null;
 }
 
 export interface TableResult {
@@ -58,6 +91,7 @@ export interface TableResult {
   ignored: { column: string; reason: string }[];
   rows_legacy: number | null;
   rows_spark: number | null;
+  rows_changed_by_legacy?: number | null;
   /** Exactly what diff.reconcile() returned, long lists cut short. null = not compared yet. */
   result: ReconcileResult | null;
   /** Full list sizes before they were cut. */

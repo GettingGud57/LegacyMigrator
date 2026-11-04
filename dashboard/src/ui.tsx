@@ -5,7 +5,7 @@ import { OUTCOME_LABEL, STATUS_LABEL } from './model';
 
 type IconName =
   | 'check' | 'cross' | 'retry' | 'dot' | 'circle' | 'warn' | 'lock' | 'eye' | 'crash'
-  | 'sun' | 'moon' | 'auto' | 'arrow' | 'back' | 'keyboard' | 'half' | 'grid' | 'book';
+  | 'sun' | 'moon' | 'auto' | 'arrow' | 'back' | 'keyboard' | 'half' | 'grid' | 'book' | 'bug';
 
 const PATHS: Record<IconName, ReactNode> = {
   check: <path d="M5 12.5l4.2 4.2L19 7" />,
@@ -25,6 +25,7 @@ const PATHS: Record<IconName, ReactNode> = {
   back: <path d="M19 12H5M11 6l-6 6 6 6" />,
   grid: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
   book: <><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" /></>,
+  bug: <><rect x="7" y="7" width="10" height="13" rx="5" /><path d="M12 11v9M7 13H3.5M20.5 13H17M7.5 17.5l-3 2M16.5 17.5l3 2M7.5 8.5l-2.5-2.5M16.5 8.5l2.5-2.5M9.5 7a2.5 2.5 0 0 1 5 0" /></>,
   keyboard: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></>,
 };
 

@@ -224,6 +224,14 @@ export function verdictSentence(job: Job): string {
           `on holdout data the AI never saw.`
         );
       }
+      if (last && attemptOutcome(last) === 'mismatch') {
+        const bad = failingTables(last.runs.dev);
+        const total = summarizeRun(last.runs.dev).tables;
+        const names = bad.map((t) => t.table).join(' and ');
+        return n === 1
+          ? `Not verified. The first attempt got ${bad.length} of ${total} tables wrong on dev data: ${names}.`
+          : `Not verified. After ${plural(n, 'attempt')} the new code still gets ${bad.length} of ${total} tables wrong: ${names}.`;
+      }
       return `Not verified. After ${plural(n, 'attempt')} the new code still doesn't match the old system.`;
     }
     case 'retrying':

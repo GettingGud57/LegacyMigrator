@@ -25,6 +25,7 @@ Almost everything else is a name or a number you already have.
 | `notes` | list of strings | Optional. Shown under the banner. Use it to say what's real and what isn't. |
 | `datasets` | object | `{"dev": Dataset, "holdout": Dataset}`, see below. |
 | `jobs` | list of Job | One per legacy job. |
+| `checker_tests` | object | Optional. Bugs planted on purpose to test the checker, see "Checker tests" below. |
 
 **Dataset:** `{"label": "Dev data", "ai_can_see": true, "description": "..."}`.
 `ai_can_see` must be `false` for holdout.
@@ -68,6 +69,8 @@ What each `status` means:
 | `feedback` | string or null | Exactly what was sent back to the AI after this attempt. Must only describe dev data. `null` if nothing was sent. |
 | `runs` | object | `{"dev": Run or null, "holdout": Run or null}`. `null` means that dataset wasn't run. A crashed attempt has both `null`. |
 
+| `note` | string or null | Optional. A person's plain-words analysis of the attempt. Shown separately from `feedback`, and never sent to the AI. |
+
 Showing `feedback` word for word is deliberate: anyone can check the AI was never told anything about holdout data.
 
 ## Run
@@ -76,6 +79,9 @@ Showing `feedback` word for word is deliberate: anyone can check the AI was neve
 |---|---|---|
 | `tables` | list of TableResult | One per table the job touches, including tables it should leave alone. |
 | `seconds` | number | Optional. Time to run Spark and compare. |
+| `legacy_seconds` | number | Optional. Time the old procedure took on SQL Server. |
+| `window` | string | Optional. Which slice of data, in words, e.g. `"Staged 2015-06-20 to 2015-07-20, 6,143 staged rows"`. |
+| `stability_probe` | string | Optional. How the ignored columns were shown to be unstable, e.g. "ran the legacy job twice and compared". |
 
 Include the tables the job shouldn't change too (e.g. the `Dimension.*` tables for Sale).
 They're cheap to compare and prove the job didn't touch them.
@@ -89,6 +95,7 @@ They're cheap to compare and prove the job didn't touch them.
 | `ignored` | list | `[{"column": "Sale Key", "reason": "..."}]`. Every ignored column needs a reason. Empty list if none. |
 | `rows_legacy` | int or null | Rows in the legacy `after/` table (the answer key). |
 | `rows_spark` | int or null | Rows in the `spark/` table. |
+| `rows_changed_by_legacy` | int or null | Optional. Rows the old job actually changed (rows in `after/` that differ from `before/`). |
 | `result` | object or null | What `reconcile(after_rows, spark_rows, key_cols, ignore_cols)` returned. `null` = not compared yet. |
 | `counts` | object | Optional. Full list sizes before cutting: `{"only_a": 1190, "only_b": 1190, "changed": 1190}`. |
 | `extra_checks` | list | Optional. Stricter checks on top of `reconcile()`: `[{"name": "unique_key", "status": "pass", "detail": "plain sentence"}]`. The table only passes if `result.status` and every extra check pass. |
@@ -105,6 +112,21 @@ Pass them to `reconcile()` in that order.
 | `only_a`, `only_b` | Whole rows (lists of values) with no identical twin on the other side. |
 | `cols_only_a`, `cols_only_b` | Columns one side has and the other doesn't. |
 | `explanation` | `null` on PASS. On FAIL with `key_cols`, what `diff()` returned: `rows_only_a`, `rows_only_b` (keys), `changed` (`[{"key": [...], "col": "...", "a": old, "b": new}]`), `dupes_a`, `dupes_b`, `cols_only_a`, `cols_only_b`. |
+
+## Checker tests (optional)
+
+`{"what": "...", "generated_at": "...", "job": "sale", "bugs": [Bug, ...]}`, where each Bug is:
+
+| Field | Type | What it is |
+|---|---|---|
+| `name` | string | Short id, e.g. `"forget_cutoff"`. |
+| `description` | string | The planted mistake, in plain words. |
+| `control` | bool | `true` for the unmodified translation, which must pass. |
+| `dev`, `holdout` | object | `{"status": "pass" or "fail", "crashed": bool, "failed_tables": [{"table", "failed_checks", "changed_columns"}]}`. |
+| `outcome` | string | e.g. `"caught by dev"`. The dashboard works out its own grouping from `dev` and `holdout`. |
+| `why` | string | Why it was or wasn't caught. For a missed bug, what data would catch it. |
+
+`scripts/test_bench_to_results.py` builds this from the test bench's `planted_bugs.json`.
 
 ## Lineage (optional)
 

@@ -51,7 +51,18 @@ export function Overview({ data }: { data: ResultsFile }) {
         <Kpi value={num(t.attempts)} label="Attempts" />
         <Kpi value={num(t.tablesChecked)} label="Table checks" />
         <Kpi value={num(t.rowsCompared)} label="Rows compared" />
-        <Kpi value={num(t.ignoredCols)} label="Ignored columns" />
+        {data.checker_tests ? (
+          <a className="stat stat-link" href={href({ page: 'checks' })}>
+            <span className="stat-label">Planted bugs caught</span>
+            <span className="stat-value">
+              {data.checker_tests.bugs.filter((x) => !x.control && (x.dev.status === 'fail' || x.holdout.status === 'fail')).length}
+              <span className="stat-of"> / {data.checker_tests.bugs.filter((x) => !x.control).length}</span>
+            </span>
+            <span className="stat-note">See the checker test →</span>
+          </a>
+        ) : (
+          <Kpi value={num(t.ignoredCols)} label="Ignored columns" />
+        )}
       </section>
 
       <section aria-labelledby="jobs-title">

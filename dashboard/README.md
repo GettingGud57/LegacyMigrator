@@ -32,8 +32,8 @@ The header has a dropdown to switch, and `?data=<id>` in the address picks one (
 
 | File | What it is |
 |---|---|
+| `real.json` | Real results from the test bench: Sale, City and Movement, plus the planted-bug checker test. Opens first. Built by `python scripts/test_bench_to_results.py --ref origin/claude/test-bench`. |
 | `sample.json` | The demo story. Invented numbers, so the UI shows a "Sample data" banner. Built by `scripts/build_dashboard_data.py`. |
-| `real.json` | Only what has really happened so far. Built by the same script. |
 | `sqlglot_probe.json` | Real output of `scripts/sqlglot_probe.py`, shown on "How it works". |
 | `results.json` | Not there yet: what `loop.py` (or `scripts/check_to_results.py`) will write. |
 

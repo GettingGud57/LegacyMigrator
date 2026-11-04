@@ -24,8 +24,10 @@ export function RunTables({ run, dataset, kind }: { run: Run; dataset: Dataset; 
         <p className="muted">
           {s.passed} of {s.tables} tables match{s.failed ? `, ${s.failed} differ` : ''}
           {s.compared < s.tables ? `, ${s.tables - s.compared} not compared yet` : ''} · {num(s.rowsCompared)} rows
-          compared{run.seconds != null ? ` · ${seconds(run.seconds)}` : ''}
+          compared{run.seconds != null ? ` · Spark ${seconds(run.seconds)}` : ''}
+          {run.legacy_seconds != null ? ` · old job ${seconds(run.legacy_seconds)}` : ''}
         </p>
+        {run.window && <p className="muted small">{run.window}</p>}
       </header>
       <ul className="tables">
         {tables.map((t) => <TableRow key={t.table} t={t} />)}
@@ -71,14 +73,26 @@ function TableRow({ t }: { t: TableResult }) {
   );
 }
 
-/** Stricter checks some producers (migrator/check.py) run on top of reconcile(). */
+/**
+ * Every check the table went through. With migrator/check.py that's three: whole rows (reconcile(),
+ * ignored columns reduced to "filled in or empty"), untouched rows, and a unique key.
+ */
 export function ExtraChecks({ t }: { t: TableResult }) {
   if (!t.extra_checks?.length) return null;
+  const whole = t.result
+    ? [{
+        name: 'whole_rows',
+        status: t.result.status,
+        detail: t.result.status === 'pass'
+          ? 'Every row of the old output has an identical twin in the new output, and no extra rows.'
+          : `${num(rowsWrong(t).a)} old rows and ${num(rowsWrong(t).b)} new rows have no identical twin.`,
+      }]
+    : [];
   return (
     <div className="ignored">
-      <h4>Extra checks</h4>
+      <h4>Checks</h4>
       <ul>
-        {t.extra_checks.map((c) => (
+        {[...whole, ...t.extra_checks].map((c) => (
           <li key={c.name}>
             <span className={c.status === 'pass' ? 'xc-pass' : 'bad'}>
               <Icon name={c.status === 'pass' ? 'check' : 'cross'} size={14} /> {c.name.replace(/_/g, ' ')}

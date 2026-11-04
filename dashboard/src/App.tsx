@@ -6,6 +6,7 @@ import { jobView } from './model';
 import { Overview } from './views/Overview';
 import { JobPage } from './views/JobPage';
 import { HowItWorks, type Probe } from './views/HowItWorks';
+import { CheckerTest } from './views/CheckerTest';
 
 type Theme = 'system' | 'light' | 'dark';
 
@@ -93,6 +94,7 @@ export function App() {
         else if (route.page !== 'overview') go({ page: 'overview' });
       } else if (e.key === 'o') go({ page: 'overview' });
       else if (e.key === 'h') go({ page: 'how' });
+      else if (e.key === 'c') go({ page: 'checks' });
       else if (e.key === 't') cycle();
     };
     window.addEventListener('keydown', onKey);
@@ -108,7 +110,7 @@ export function App() {
   const data = loaded && 'data' in loaded ? loaded.data : null;
   useEffect(() => {
     const job = route.page === 'job' && data ? data.jobs.find((j) => j.id === route.jobId) : null;
-    const part = route.page === 'how' ? 'How it works' : job ? job.name : 'Overview';
+    const part = route.page === 'how' ? 'How it works' : route.page === 'checks' ? 'Checker test' : job ? job.name : 'Overview';
     document.title = `${part} - LegacyMigrator`;
   }, [route, data]);
 
@@ -131,6 +133,11 @@ export function App() {
           <a href={href({ page: 'overview' })} aria-current={route.page === 'overview' ? 'page' : undefined}>
             <Icon name="grid" size={16} /> Overview
           </a>
+          {data?.checker_tests && (
+            <a href={href({ page: 'checks' })} aria-current={route.page === 'checks' ? 'page' : undefined}>
+              <Icon name="bug" size={16} /> Checker test
+            </a>
+          )}
           <a href={href({ page: 'how' })} aria-current={route.page === 'how' ? 'page' : undefined}>
             <Icon name="book" size={16} /> How it works
           </a>
@@ -182,6 +189,7 @@ export function App() {
           <nav className="crumbs" aria-label="Breadcrumb">
             <a href={href({ page: 'overview' })}>Jobs</a>
             {route.page === 'how' && <><span className="sep">/</span><span>How it works</span></>}
+            {route.page === 'checks' && <><span className="sep">/</span><span>Checker test</span></>}
             {job && <><span className="sep">/</span><span>{job.name}</span></>}
             {job && route.page === 'job' && route.attempt && <><span className="sep">/</span><span>Attempt {route.attempt}</span></>}
           </nav>
@@ -196,6 +204,7 @@ export function App() {
           {!loaded && <p className="loading">Loading results…</p>}
           {loaded && 'error' in loaded && <LoadError error={loaded.error} />}
           {data && route.page === 'overview' && <Overview data={data} />}
+          {data && route.page === 'checks' && <CheckerTest data={data} />}
           {data && route.page === 'how' && <HowItWorks data={data} probe={loaded && 'probe' in loaded ? loaded.probe : null} />}
           {data && route.page === 'job' && <JobPage data={data} route={route} />}
         </main>
@@ -256,6 +265,7 @@ function LoadError({ error }: { error: string }) {
 const KEYS: [string, string][] = [
   ['o', 'Overview: all jobs'],
   ['h', 'How it works'],
+  ['c', 'Checker test (planted bugs)'],
   ['↑ ↓  or  j k', 'Move between jobs (overview)'],
   ['Enter', 'Open the selected job'],
   ['← →', 'Previous / next attempt (job page)'],

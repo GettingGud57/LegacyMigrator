@@ -175,6 +175,14 @@ function ResultsTab({ data, job, attempt }: { data: ResultsFile; job: Job; attem
         {attempt.started_at && <span className="muted"> Started {new Date(attempt.started_at).toUTCString().replace(' GMT', ' UTC')}.</span>}
       </p>
 
+      {attempt.note && (
+        <div className="note-box">
+          <h3>What went wrong, in plain words</h3>
+          <p className="muted small">Written by a person after reading the diff. It was never sent to the AI.</p>
+          <p>{attempt.note}</p>
+        </div>
+      )}
+
       {attempt.error && (
         <div className="error-box">
           <p className="error-title">
@@ -238,6 +246,10 @@ function EvidenceTab({ attempt }: { attempt: Attempt }) {
       {runs.map((k) => (
         <section key={k} className="ev-run">
           <h3>{k === 'dev' ? 'Dev data' : 'Holdout data'}</h3>
+          {attempt.runs[k]!.window && <p className="small muted">{attempt.runs[k]!.window}</p>}
+          {attempt.runs[k]!.stability_probe && (
+            <p className="callout small"><Icon name="check" size={15} /> <span><b>Why the ignored columns are ignored:</b> {attempt.runs[k]!.stability_probe}</span></p>
+          )}
           {attempt.runs[k]!.tables.map((t) => <EvidenceTable key={t.table} t={t} />)}
         </section>
       ))}
@@ -254,6 +266,7 @@ function EvidenceTable({ t }: { t: TableResult }) {
         <code className="tname">{t.table}</code>
         <span className="muted">
           old {t.rows_legacy != null ? num(t.rows_legacy) : '?'} rows · new {t.rows_spark != null ? num(t.rows_spark) : '?'} rows
+          {t.rows_changed_by_legacy != null && ` · ${num(t.rows_changed_by_legacy)} rows changed by the old job`}
         </span>
       </header>
       {r ? (

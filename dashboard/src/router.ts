@@ -1,6 +1,7 @@
 // Hash-based routes, so deep links work on any static host (and from python -m http.server).
 //   #/                          overview
 //   #/how                       how it works
+//   #/checks                    planted-bug test of the checker
 //   #/job/sale                  a job (its latest attempt)
 //   #/job/sale/attempt/2        one attempt
 //   #/job/sale/attempt/2/code   one attempt, on a given tab
@@ -12,11 +13,13 @@ export const TABS: Tab[] = ['results', 'code', 'evidence', 'lineage'];
 export type Route =
   | { page: 'overview' }
   | { page: 'how' }
+  | { page: 'checks' }
   | { page: 'job'; jobId: string; attempt: number | null; tab: Tab };
 
 export function parse(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
   if (parts[0] === 'how') return { page: 'how' };
+  if (parts[0] === 'checks') return { page: 'checks' };
   if (parts[0] === 'job' && parts[1]) {
     const attempt = parts[2] === 'attempt' && /^\d+$/.test(parts[3] ?? '') ? Number(parts[3]) : null;
     const tabPart = attempt === null ? parts[2] : parts[4];
@@ -29,6 +32,7 @@ export function parse(hash: string): Route {
 export function href(route: Route): string {
   if (route.page === 'overview') return '#/';
   if (route.page === 'how') return '#/how';
+  if (route.page === 'checks') return '#/checks';
   let h = `#/job/${encodeURIComponent(route.jobId)}`;
   if (route.attempt !== null) h += `/attempt/${route.attempt}`;
   if (route.tab !== 'results') h += `/${route.tab}`;
