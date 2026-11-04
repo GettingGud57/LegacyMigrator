@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LegacyMigrator Teammate Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Everything you need to explain LegacyMigrator to judges: the idea, the fundamentals from zero, how the pipeline works, what it proves, and likely questions.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: long-form guide. Sticky contents rail on wide screens, collapsible contents on phones.
+   Two "sides" run through every picture: plum = the old SQL Server job, orange = the new Spark job. */
+:root {
+  --bg: #F4F6F9;
+  --surface: #FFFFFF;
+  --panel: #EAEEF3;
+  --fg: #17202B;
+  --muted: #556173;
+  --line: #C9D1DC;
+  --accent: #1D5A97;
+  --accent-soft: #DCE8F5;
+  --legacy: #74418C;
+  --legacy-soft: #EFE4F4;
+  --spark: #B4530F;
+  --spark-soft: #FBE9DC;
+  --pass: #1F7443;
+  --pass-soft: #DDF1E5;
+  --fail: #B42318;
+  --fail-soft: #FBE3E1;
+  --warn: #8A5D00;
+  --warn-soft: #F8EDCF;
+  --code-bg: #EBEFF4;
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F141B; --surface: #151C25; --panel: #1B2430; --fg: #E3E8EF; --muted: #9AA6B5;
+    --line: #2F3B4B; --accent: #82B4E8; --accent-soft: #1A2B3F;
+    --legacy: #C9A0DD; --legacy-soft: #2A2033; --spark: #F2A065; --spark-soft: #33241A;
+    --pass: #63C98F; --pass-soft: #16301F; --fail: #F28B82; --fail-soft: #3A1D1B;
+    --warn: #E3B851; --warn-soft: #33290F; --code-bg: #19212C;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F141B; --surface: #151C25; --panel: #1B2430; --fg: #E3E8EF; --muted: #9AA6B5;
+  --line: #2F3B4B; --accent: #82B4E8; --accent-soft: #1A2B3F;
+  --legacy: #C9A0DD; --legacy-soft: #2A2033; --spark: #F2A065; --spark-soft: #33241A;
+  --pass: #63C98F; --pass-soft: #16301F; --fail: #F28B82; --fail-soft: #3A1D1B;
+  --warn: #E3B851; --warn-soft: #33290F; --code-bg: #19212C;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 0;
+  -webkit-text-size-adjust: 100%;
+}
+@media (max-width: 600px) { body { font-size: 17px; } }
+
+.shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
+}
+@media (min-width: 1100px) {
+  .shell { grid-template-columns: 250px minmax(0, 1fr); }
+}
+main { min-width: 0; max-width: 46rem; }
+
+/* Header */
+.masthead {
+  grid-column: 1 / -1;
+  padding-block: 40px 8px;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 14px;
+}
+.masthead .eyebrow {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center;
+}
+.masthead h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+.masthead h1 .vs { color: var(--muted); font-weight: 600; }
+.masthead .lede { font-size: 1.15rem; color: var(--muted); max-width: 44rem; margin: 0; }
+.masthead .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding-block: 8px 16px; }
+.reconcile-strip {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-family: var(--mono); font-size: 0.82rem;
+}
+.reconcile-strip span { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); }
+.reconcile-strip .l { color: var(--legacy); border-color: var(--legacy); }
+.reconcile-strip .s { color: var(--spark); border-color: var(--spark); }
+.reconcile-strip .eq { border: none; background: none; color: var(--muted); padding: 4px 2px; }
+.reconcile-strip .p { color: var(--pass); border-color: var(--pass); background: var(--pass-soft); font-weight: 600; }
+
+button.theme {
+  font-family: var(--display); font-weight: 600; font-size: 0.85rem;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+button.theme:hover { border-color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Contents */
+nav.toc { font-family: var(--display); font-size: 0.92rem; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
+nav.toc li { counter-increment: toc; }
+nav.toc a {
+  display: grid; grid-template-columns: 2.2em 1fr; gap: 4px;
+  color: var(--fg); text-decoration: none; padding: 5px 8px; border-radius: 5px; line-height: 1.3;
+}
+nav.toc a::before { content: counter(toc, decimal-leading-zero); font-family: var(--mono); font-size: 0.78rem; color: var(--muted); padding-top: 2px; }
+nav.toc a:hover { background: var(--panel); }
+nav.toc a.active { background: var(--accent-soft); color: var(--accent); }
+nav.toc .label { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px 8px; }
+.toc-rail { display: none; }
+@media (min-width: 1100px) {
+  .toc-rail { display: block; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; padding-top: 32px; }
+  .toc-inline { display: none; }
+}
+details.toc-inline { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 4px 12px; margin-top: 24px; }
+details.toc-inline > summary { font-family: var(--display); font-weight: 700; cursor: pointer; padding: 8px 0; }
+details.toc-inline nav { padding-bottom: 10px; }
+
+/* Type */
+h2, h3, h4 { font-family: var(--display); line-height: 1.2; text-wrap: balance; }
+h2 {
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem); font-weight: 800; letter-spacing: -0.015em;
+  margin: 72px 0 12px; padding-top: 20px; border-top: 2px solid var(--fg);
+}
+h2 .num { font-family: var(--mono); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); display: block; margin-bottom: 8px; }
+h3 { font-size: 1.3rem; font-weight: 700; margin: 44px 0 8px; }
+h4 { font-size: 1.05rem; font-weight: 700; margin: 28px 0 6px; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 16px; padding-left: 1.3em; }
+li { margin-bottom: 6px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+strong { font-weight: 600; }
+code, .mono { font-family: var(--mono); font-size: 0.84em; }
+:not(pre) > code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre {
+  font-family: var(--mono); font-size: 0.8rem; line-height: 1.55;
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 14px 16px; overflow-x: auto; margin: 0 0 18px; color: var(--fg);
+}
+pre .c { color: var(--muted); }
+pre .k { color: var(--accent); font-weight: 600; }
+pre .lg { color: var(--legacy); }
+pre .sp { color: var(--spark); }
+.small { font-size: 0.88rem; color: var(--muted); }
+
+/* Callouts and chips */
+.say {
+  border-left: 4px solid var(--accent); background: var(--accent-soft);
+  padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 0 0 18px;
+}
+.say .who { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 4px; }
+.say p:last-child { margin-bottom: 0; }
+.note { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 14px 18px; margin: 0 0 18px; }
+.note.warn { border-color: var(--warn); background: var(--warn-soft); }
+.note .h { font-family: var(--display); font-weight: 700; display: block; margin-bottom: 4px; }
+.note p:last-child, .note ul:last-child { margin-bottom: 0; }
+.chip {
+  display: inline-block; font-family: var(--mono); font-size: 0.68rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+  vertical-align: 0.15em; white-space: nowrap; border: 1px solid transparent;
+}
+.chip.built { color: var(--pass); background: var(--pass-soft); border-color: var(--pass); }
+.chip.wip { color: var(--warn); background: var(--warn-soft); border-color: var(--warn); }
+.chip.planned { color: var(--muted); background: transparent; border: 1px dashed var(--muted); }
+.chip.confirm { color: var(--fail); background: var(--fail-soft); border-color: var(--fail); }
+.chip.legacy { color: var(--legacy); background: var(--legacy-soft); border-color: var(--legacy); }
+.chip.spark { color: var(--spark); background: var(--spark-soft); border-color: var(--spark); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--display); font-weight: 600; background: var(--panel); white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td.mono, th.mono { font-family: var(--mono); font-size: 0.8rem; }
+td.empty { color: var(--muted); font-style: italic; }
+td.filled { color: var(--pass); font-weight: 600; }
+td.bad { color: var(--fail); font-weight: 600; background: var(--fail-soft); }
+caption { caption-side: bottom; text-align: left; padding: 8px 12px; font-size: 0.8rem; color: var(--muted); }
+
+/* Figures */
+figure.fig { margin: 8px 0 24px; }
+.fig .canvas { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 12px; }
+.fig svg { display: block; width: 100%; height: auto; }
+.fig.wide svg { min-width: 680px; }
+.fig figcaption { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+svg text { font-family: var(--display); fill: var(--fg); }
+svg .t-muted { fill: var(--muted); }
+svg .t-mono { font-family: var(--mono); }
+svg .t-legacy { fill: var(--legacy); }
+svg .t-spark { fill: var(--spark); }
+svg .t-pass { fill: var(--pass); }
+svg .t-fail { fill: var(--fail); }
+svg .t-accent { fill: var(--accent); }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+svg .box-panel { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+svg .box-legacy { fill: var(--legacy-soft); stroke: var(--legacy); stroke-width: 1.5; }
+svg .box-spark { fill: var(--spark-soft); stroke: var(--spark); stroke-width: 1.5; }
+svg .box-pass { fill: var(--pass-soft); stroke: var(--pass); stroke-width: 1.5; }
+svg .box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .box-fail { fill: var(--fail-soft); stroke: var(--fail); stroke-width: 1.5; }
+svg .box-planned { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 4; }
+svg .ln { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+svg .ln-dash { stroke: var(--muted); stroke-width: 1.6; fill: none; stroke-dasharray: 6 4; }
+svg .ln-legacy { stroke: var(--legacy); stroke-width: 2; fill: none; }
+svg .ln-spark { stroke: var(--spark); stroke-width: 2; fill: none; }
+svg .ln-fail { stroke: var(--fail); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+svg .ln-accent { stroke: var(--accent); stroke-width: 2; fill: none; }
+svg .ah { fill: var(--muted); }
+svg .ah-legacy { fill: var(--legacy); }
+svg .ah-spark { fill: var(--spark); }
+svg .ah-accent { fill: var(--accent); }
+svg .grid { stroke: var(--line); stroke-width: 1; }
+svg .bar-legacy { fill: var(--legacy-soft); stroke: var(--legacy); stroke-width: 1.5; }
+svg .bar-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+svg .dot-spark { fill: var(--spark); }
+
+/* Two-up comparison */
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 14px; margin: 0 0 18px; }
+.pair > * { min-width: 0; }
+.pair pre { margin: 0; height: 100%; }
+.pair .cap { font-family: var(--display); font-weight: 700; font-size: 0.85rem; margin-bottom: 6px; display: block; }
+
+/* Steps */
+ol.steps { list-style: none; padding: 0; counter-reset: step; display: grid; gap: 14px; }
+ol.steps > li { counter-increment: step; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: 12px; margin: 0; }
+ol.steps > li::before {
+  content: counter(step); font-family: var(--display); font-weight: 800; font-size: 1rem;
+  width: 2.1rem; height: 2.1rem; border-radius: 50%; display: grid; place-items: center;
+  background: var(--fg); color: var(--bg);
+}
+ol.steps > li > div { min-width: 0; }
+
+/* Q&A */
+.qa-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.qa-tools button {
+  font-family: var(--display); font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg); padding: 6px 12px; border-radius: 6px;
+}
+.qa-tools button:hover { border-color: var(--accent); }
+details.qa { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); margin: 0 0 8px; }
+details.qa > summary {
+  cursor: pointer; padding: 12px 16px; font-family: var(--display); font-weight: 600; font-size: 1rem;
+  list-style: none; display: grid; grid-template-columns: 2.6em minmax(0, 1fr) 1em; gap: 6px; align-items: baseline;
+}
+details.qa > summary::-webkit-details-marker { display: none; }
+details.qa > summary .n { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+details.qa > summary::after { content: "+"; font-family: var(--mono); color: var(--muted); text-align: right; }
+details.qa[open] > summary::after { content: "-"; }
+details.qa[open] > summary { border-bottom: 1px solid var(--line); }
+details.qa .a { padding: 12px 16px 4px; }
+details.qa .tough { color: var(--fail); font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.qa-group { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 26px 0 10px; }
+
+/* Glossary */
+dl.gloss { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0 0 18px; border-top: 1px solid var(--line); }
+dl.gloss > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 700px) { dl.gloss > div { grid-template-columns: 13rem minmax(0, 1fr); gap: 16px; } }
+dl.gloss dt { font-family: var(--display); font-weight: 700; }
+dl.gloss dd { margin: 0; }
+
+footer.end { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ah-legacy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-legacy" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ah-spark" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-spark" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ah-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah-accent" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+</svg>
+
+<div class="shell">
+
+<header class="masthead">
+  <div class="row">
+    <div class="eyebrow"><span>EXL Data &amp; AI Hackathon</span><span>Challenge 03</span><span>Guide for the team</span></div>
+    <button class="theme" id="theme-toggle" type="button" aria-label="Switch between light and dark mode">Dark mode</button>
+  </div>
+  <h1>LegacyMigrator <span class="vs">teammate guide</span></h1>
+  <p class="lede">What the project is, the background you need from zero, how every piece works, what a pass really proves, and straight answers to the questions judges are likely to ask.</p>
+  <div class="reconcile-strip" aria-label="The core idea in one line">
+    <span class="l">old job's real output</span><span class="eq">vs</span><span class="s">AI's PySpark output</span><span class="eq">=</span><span class="p">PASS only if every row matches</span>
+  </div>
+</header>
+
+<aside class="toc-rail" aria-label="Contents">
+  <nav class="toc" id="toc-rail"></nav>
+</aside>
+
+<main id="top">
+
+<details class="toc-inline">
+  <summary>Contents</summary>
+  <nav class="toc" id="toc-inline"></nav>
+</details>
+
+<section id="read-me">
+<h2><span class="num">00</span>Before you start</h2>
+<p>This guide is for you, the teammate who'll be standing next to the demo. It assumes basic Python and basic SQL, and nothing else. Every idea is explained from zero the first time it shows up.</p>
+<p>It's long. You don't have to read it in one go. If the finale were tomorrow, read <a href="#pitch">What to say first</a>, <a href="#problem">The problem</a>, <a href="#pipeline">How it works</a>, <a href="#compare">How the comparison works</a> and the <a href="#qa">questions</a>. Come back to the fundamentals when a word doesn't make sense.</p>
+<p>Throughout the guide, things are marked with what state they're actually in. Judges will ask follow-up questions, so never present something as done when it isn't.</p>
+<div class="table-wrap">
+<table>
+  <tr><th>Mark</th><th>Means</th></tr>
+  <tr><td><span class="chip built">Built</span></td><td>Exists on <code>main</code> and has been run.</td></tr>
+  <tr><td><span class="chip wip">In progress</span></td><td>Someone is working on it now, usually on another branch. Not finished, not merged.</td></tr>
+  <tr><td><span class="chip planned">Planned</span></td><td>Decided on, but not started. Say "we're adding" or "the next step is", never "we have".</td></tr>
+  <tr><td><span class="chip confirm">To confirm</span></td><td>This guide couldn't check it from the repo. Ask the repo owner before saying it out loud.</td></tr>
+</table>
+</div>
+<div class="note warn">
+  <span class="h">One thing to check first: your insurance-style test jobs</span>
+  <p>The plan in the devlog is that you write some insurance-style T-SQL jobs <em>without seeing the tool</em>, so the test isn't rigged to suit it. Reading this guide shows you how the tool works. That doesn't break the test on its own. The point of the rule is that you don't pick jobs that are easy for the AI. So if you haven't written them yet: write them the way a real insurance team would, include the awkward things real jobs have (NULLs, ties, rounding, history tables, MERGE), and don't look at the AI's translations or its prompt rules in <code>migrator/translate.py</code> before you're done. If a judge asks, say exactly what happened.</p>
+</div>
+</section>
+
+<section id="pitch">
+<h2><span class="num">01</span>What to say first</h2>
+
+<h3>The 30-second version</h3>
+<div class="say">
+  <span class="who">Say this</span>
+  <p>Big companies, insurers especially, run thousands of old database jobs every night, and they want to move them to modern platforms like Spark. AI can translate that code quickly, but AI code can run perfectly and still give slightly wrong numbers. LegacyMigrator uses AI to translate each job, and then checks it: we run the old job and the new one on exactly the same data, and compare every row of the output. The AI never grades its own work. The old system's real output is the answer key.</p>
+</div>
+
+<h3>The 3-minute version</h3>
+<p>Roughly 30 seconds per paragraph. Don't memorise it word for word. Know the six beats and say them your own way.</p>
+<div class="say">
+  <span class="who">1. The problem</span>
+  <p>Companies have old jobs written in SQL Server's language, T-SQL, or in SAS. Every night they copy the day's data into a reporting database and do the sums. Moving to Spark means rewriting all of them, and that's slow, expensive, and risky. One wrong rounding rule and a premium total is off by a few cents on a million policies.</p>
+</div>
+<div class="say">
+  <span class="who">2. Why AI alone isn't enough</span>
+  <p>AI can do the rewriting, but you can't trust it on its word. We tried a standard translation tool, sqlglot, on 141 statements from Microsoft's sample jobs. It reported 141 out of 141 successes. The output still contained T-SQL that Spark refuses to run. "Success" from the tool didn't mean the code worked. And code that runs can still be wrong.</p>
+</div>
+<div class="say">
+  <span class="who">3. Our idea</span>
+  <p>So we don't ask the AI whether it got it right. We ask the old system. We take a snapshot of the input tables, run the real legacy job, and save what it produced. That's the answer key. Then we run the AI's PySpark on the identical input and compare the two outputs, whole row by whole row. Pass means every row matches. Anything else is a fail, with a report that points to the exact rows and columns.</p>
+</div>
+<div class="say">
+  <span class="who">4. What we've shown</span>
+  <p>We set up Microsoft's sample data warehouse and took one of its real loading jobs, the one that loads sales. Claude translated it into PySpark. On the first table we compared, all 5,224 rows and 26 columns matched the legacy output exactly. We're now comparing the job's other output tables and adding two more jobs: one that keeps history, and one that uses MERGE.</p>
+</div>
+<div class="say">
+  <span class="who">5. Why you can trust it</span>
+  <p>The AI never sees the answer key, only the old code and the table layouts. The part that decides pass or fail is written by hand, not by AI. And we're adding a holdout dataset: data the AI never gets any feedback from, so it can't just tune itself to pass our tests.</p>
+</div>
+<div class="say">
+  <span class="who">6. What it means for EXL</span>
+  <p>In insurance, a migration isn't done when the code runs. It's done when the numbers match and someone can show they match. This tool turns that check into something automatic and repeatable for every job. A pass isn't a mathematical proof, and we say so. It's strong evidence, and it tells you exactly where to look when there's a problem.</p>
+</div>
+<p class="small">Beat 4 says "now comparing" and "adding". Update it as things land. See <a href="#status">Where things stand</a>.</p>
+</section>
+
+<section id="problem">
+<h2><span class="num">02</span>The problem</h2>
+
+<h3>Old jobs that run every night</h3>
+<p>Picture an insurer. Every day, policies are sold, claims come in, payments go out. All of that lands in the company's live systems. Every night, a batch of programs wakes up, copies the day's records into a separate reporting database, and does the sums: total premiums by region, claims paid this month, reserves.</p>
+<p>Those programs are called <strong>ETL jobs</strong> (extract, transform, load). In a lot of companies they were written 10 to 25 years ago, in T-SQL (SQL Server's version of SQL) or SAS (a statistics language that's big in insurance and banking). There can be hundreds or thousands of them. The people who wrote them have often left.</p>
+
+<h3>Why companies move them to Spark</h3>
+<ul>
+  <li><strong>Data outgrew the box.</strong> These jobs usually run on one big database server. When data grows, the only option is a bigger, more expensive server, and there's a ceiling.</li>
+  <li><strong>Spark spreads the work across many machines.</strong> Add machines when there's more data. In the cloud, you only pay for them while the job runs.</li>
+  <li><strong>Licences and lock-in.</strong> SQL Server and SAS licences are expensive. Spark is free, open-source software, and runs on all the big cloud platforms.</li>
+  <li><strong>One place for everything.</strong> Companies want reporting, data science and machine learning on the same data, in the same tools. Spark and Python fit that.</li>
+</ul>
+
+<h3>Why AI translation on its own is risky</h3>
+<p>Rewriting thousands of jobs by hand takes years. AI can write a first draft in seconds. The catch: the dangerous mistake isn't code that crashes. Crashes are easy to spot. The dangerous mistake is code that runs fine and gives slightly different numbers.</p>
+<p>Two real examples of how that happens. Both are differences between how SQL Server and Spark behave:</p>
+<div class="table-wrap">
+<table>
+  <tr><th>What the code says</th><th>SQL Server gives</th><th>Spark gives</th></tr>
+  <tr><td class="mono">7 / 2</td><td class="mono">3</td><td class="mono">3.5</td></tr>
+  <tr><td class="mono">'Cork' = 'Cork&nbsp;&nbsp;'</td><td class="mono">true</td><td class="mono">false</td></tr>
+  <caption>SQL Server does whole-number division when both numbers are whole, and ignores trailing spaces when comparing text. Spark does neither. A word-for-word translation runs fine and gives a different answer.</caption>
+</table>
+</div>
+<p>Now picture that inside a premium calculation, applied to a million policies. Nothing crashes. Nobody notices for months. Then the finance team's totals don't match the old reports, and nobody knows which of the 400 migrated jobs is the cause.</p>
+
+<h3>Why proof matters in insurance</h3>
+<p>Insurers are regulated. Their numbers feed financial statements, reserves (money set aside to pay future claims) and reports to regulators. Auditors expect the company to show that a system change didn't change the numbers. "The AI said it was fine" isn't an answer an auditor accepts. "Here's the old output, here's the new output, here's the row-by-row comparison, and they match" is.</p>
+<p>That's the gap LegacyMigrator fills.</p>
+</section>
+
+<section id="basics">
+<h2><span class="num">03</span>The fundamentals, from zero</h2>
+<p>Each idea here is one you'll need to understand the rest. They build on each other, so go in order the first time.</p>
+
+<h3 id="b-db">Database</h3>
+<p>A database is a program that stores tables and lets you ask questions about them. A table is like a spreadsheet tab with strict rules: every column has a name and a type (whole number, date, text), and every row follows the same layout.</p>
+<p>The database we use is <strong>SQL Server</strong>, Microsoft's database. Inside one SQL Server you can have several databases, and inside each database, tables are grouped into named folders called <strong>schemas</strong>. That's why our table names have two parts:</p>
+<div class="table-wrap">
+<table>
+  <tr><th>Full name</th><th>Schema (folder)</th><th>Table</th></tr>
+  <tr><td class="mono">Fact.Sale</td><td>Fact</td><td>Sale</td></tr>
+  <tr><td class="mono">Dimension.Customer</td><td>Dimension</td><td>Customer</td></tr>
+  <tr><td class="mono">Integration.Sale_Staging</td><td>Integration</td><td>Sale_Staging</td></tr>
+</table>
+</div>
+<p>Square brackets, like <code>[Stock Item]</code> or <code>[Customer Key]</code>, are how SQL Server lets names contain spaces. Microsoft's sample uses spaces everywhere, so you'll see a lot of brackets.</p>
+<p class="small">Careful: "schema" also has a second meaning, a table's layout (its column names and types). People use both. Context tells you which.</p>
+
+<h3 id="b-tsql">SQL vs T-SQL</h3>
+<p><strong>SQL</strong> is the standard language for asking databases questions. Every database speaks it, but each one adds its own extras and quirks. <strong>T-SQL</strong> ("Transact-SQL") is Microsoft's version for SQL Server. Spark has its own version too, called Spark SQL.</p>
+<p>The basics are the same everywhere. The extras are where translation gets hard. Here's T-SQL from the actual Sale job, with the T-SQL-only parts pointed out:</p>
+<pre><span class="k">DECLARE</span> <span class="lg">@LineageKey</span> int = (<span class="k">SELECT</span> <span class="lg">TOP(1)</span> [Lineage Key]   <span class="c">-- variables with @, and TOP(1)</span>
+                           <span class="k">FROM</span> Integration.Lineage
+                           <span class="k">WHERE</span> [Table Name] = N'Sale'
+                           <span class="k">AND</span> [Data Load Completed] <span class="k">IS NULL</span>
+                           <span class="k">ORDER BY</span> [Lineage Key] <span class="k">DESC</span>);
+
+<span class="lg">DELETE s</span>                                                 <span class="c">-- "DELETE alias FROM": T-SQL only</span>
+<span class="k">FROM</span> Fact.Sale <span class="k">AS</span> s
+<span class="k">WHERE</span> s.[WWI Invoice ID] <span class="k">IN</span> (<span class="k">SELECT</span> [WWI Invoice ID] <span class="k">FROM</span> Integration.Sale_Staging);</pre>
+<p>Spark can't run either statement as written. And even where both languages accept the same words, they can mean different things, like the <code>7 / 2</code> example above.</p>
+
+<h3 id="b-proc">Stored procedure</h3>
+<p>A stored procedure is a named program saved inside the database. Instead of sending SQL from outside, you say <code>EXEC Integration.MigrateStagedSaleData</code> and the database runs the whole thing: several SQL statements in order, with variables, maybe some IF logic. It's like a Python function that lives in the database.</p>
+<p>Our three test jobs are stored procedures written by Microsoft. They live in <code>legacy_jobs/wwi/</code>. The Sale one is 84 lines. It returns 0 when it finishes.</p>
+
+<h3 id="b-oltp">The shop vs the warehouse (OLTP vs OLAP)</h3>
+<p>Think of a café.</p>
+<p>The <strong>till</strong> records every sale the moment it happens: one coffee, one muffin, card payment, 9:14am. It has to be fast and never lose a sale. It doesn't care about monthly trends.</p>
+<p>The <strong>accountant's spreadsheet</strong> is for questions like "how much did we sell on Saturdays in March, compared to last year?" Nobody types into it during service. Once a night, someone copies the till roll into it, tidied up and in one consistent layout.</p>
+<p>Companies have the same split, with fancier names:</p>
+<ul>
+  <li>The till is the <strong>live system</strong>, or <strong>OLTP</strong> (online transaction processing). Lots of tiny, fast writes. Each fact is stored once, split across many tables (receipts, receipt lines, customers, products), so nothing is ever duplicated or out of date.</li>
+  <li>The spreadsheet is the <strong>data warehouse</strong>, or <strong>OLAP</strong> (online analytical processing). Few writes, big read-only questions. Data is laid out flat, one wide row per thing sold, so reports don't have to stitch ten tables together.</li>
+</ul>
+<p>The warehouse lives on a separate system, so a big report never slows down the till. And it keeps history the live system throws away. When a customer moves city, the live system overwrites the old address. The warehouse remembers both.</p>
+<p>Microsoft's sample, <strong>WideWorldImporters</strong>, has both halves: a pretend wholesale company with a shop database (<code>WideWorldImporters</code>) and a warehouse database (<code>WideWorldImportersDW</code>, already holding 228,265 sales). Our jobs are the nightly copying jobs between them.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 760 270" role="img" aria-labelledby="f1t">
+  <title id="f1t">The shop stores a sale across several tables; a nightly job copies it into one wide warehouse row.</title>
+  <text x="20" y="28" font-weight="700" font-size="15">The shop (live system, OLTP)</text>
+  <text x="20" y="46" font-size="12" class="t-muted">WideWorldImporters</text>
+  <rect class="box" x="20" y="62" width="150" height="60" rx="6"/>
+  <text x="32" y="84" font-size="13" font-weight="600">Invoices</text>
+  <text x="32" y="104" font-size="12" class="t-muted t-mono">#68412, customer 832</text>
+  <rect class="box" x="185" y="62" width="150" height="60" rx="6"/>
+  <text x="197" y="84" font-size="13" font-weight="600">InvoiceLines</text>
+  <text x="197" y="104" font-size="12" class="t-muted t-mono">24 x item 222</text>
+  <rect class="box" x="20" y="134" width="150" height="60" rx="6"/>
+  <text x="32" y="156" font-size="13" font-weight="600">Customers</text>
+  <text x="32" y="176" font-size="12" class="t-muted t-mono">832 lives in city 242</text>
+  <rect class="box" x="185" y="134" width="150" height="60" rx="6"/>
+  <text x="197" y="156" font-size="13" font-weight="600">StockItems</text>
+  <text x="197" y="176" font-size="12" class="t-muted t-mono">222 = Chocolate frogs</text>
+  <text x="20" y="222" font-size="12" class="t-muted">Each fact stored once. Good for selling.</text>
+  <text x="20" y="240" font-size="12" class="t-muted">Bad for "sales by city last month".</text>
+
+  <path class="ln-accent" d="M350,128 L440,128" marker-end="url(#ah-accent)"/>
+  <text x="395" y="114" font-size="12" text-anchor="middle" class="t-accent" font-weight="600">nightly</text>
+  <text x="395" y="150" font-size="12" text-anchor="middle" class="t-accent" font-weight="600">ETL job</text>
+
+  <text x="455" y="28" font-weight="700" font-size="15">The warehouse (reporting, OLAP)</text>
+  <text x="455" y="46" font-size="12" class="t-muted">WideWorldImportersDW, table Fact.Sale</text>
+  <rect class="box-accent" x="455" y="62" width="285" height="132" rx="6"/>
+  <text x="468" y="84" font-size="12" class="t-mono">Invoice 68412</text>
+  <text x="468" y="104" font-size="12" class="t-mono">Chocolate frogs 250g</text>
+  <text x="468" y="124" font-size="12" class="t-mono">Quantity 24, Unit Price 4.10</text>
+  <text x="468" y="144" font-size="12" class="t-mono">Customer Key 433, City Key 1911</text>
+  <text x="468" y="164" font-size="12" class="t-mono">Total Including Tax 113.16</text>
+  <text x="468" y="182" font-size="11" class="t-muted">one flat row per item sold</text>
+  <text x="455" y="222" font-size="12" class="t-muted">Separate system: reports don't slow sales.</text>
+  <text x="455" y="240" font-size="12" class="t-muted">Keeps history the shop overwrites.</text>
+</svg>
+</div>
+<figcaption>The same sale in both places. Values are made up for illustration; the table names are real.</figcaption>
+</figure>
+
+<h3 id="b-star">Star schema: fact tables and dimension tables</h3>
+<p>Warehouses are usually laid out as a <strong>star schema</strong>. In the middle is a <strong>fact table</strong>: one row per event, holding the numbers you add up. Around it are <strong>dimension tables</strong>: the who, where and what, which you use to group and filter.</p>
+<p>In WideWorldImporters, <code>Fact.Sale</code> has one row per line on an invoice. Its numbers (called measures) are things like <code>Quantity</code>, <code>Unit Price</code>, <code>Tax Amount</code>, <code>Profit</code> and <code>Total Including Tax</code>. Instead of storing the customer's name and city on every row, it stores a small number, a <strong>key</strong>, that points at the right row in a dimension table.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 760 380" role="img" aria-labelledby="f2t">
+  <title id="f2t">Star schema: Fact.Sale in the middle, linked by key columns to the City, Customer, Stock Item, Employee and Date dimension tables.</title>
+  <rect class="box-accent" x="270" y="110" width="220" height="170" rx="8"/>
+  <text x="380" y="136" text-anchor="middle" font-weight="700" font-size="15">Fact.Sale</text>
+  <text x="285" y="160" font-size="12" class="t-mono">City Key</text>
+  <text x="285" y="177" font-size="12" class="t-mono">Customer Key</text>
+  <text x="285" y="194" font-size="12" class="t-mono">Bill To Customer Key</text>
+  <text x="285" y="211" font-size="12" class="t-mono">Stock Item Key</text>
+  <text x="285" y="228" font-size="12" class="t-mono">Salesperson Key</text>
+  <text x="285" y="245" font-size="12" class="t-mono">Invoice Date Key</text>
+  <text x="285" y="266" font-size="12" class="t-muted">+ Quantity, Profit, totals...</text>
+
+  <rect class="box" x="20" y="24" width="190" height="62" rx="6"/>
+  <text x="34" y="48" font-weight="700" font-size="13">Dimension.City</text>
+  <text x="34" y="68" font-size="12" class="t-muted">where</text>
+  <rect class="box" x="550" y="24" width="190" height="62" rx="6"/>
+  <text x="564" y="48" font-weight="700" font-size="13">Dimension.Customer</text>
+  <text x="564" y="68" font-size="12" class="t-muted">who bought, who pays</text>
+  <rect class="box" x="550" y="300" width="190" height="62" rx="6"/>
+  <text x="564" y="324" font-weight="700" font-size="13">Dimension.[Stock Item]</text>
+  <text x="564" y="344" font-size="12" class="t-muted">what</text>
+  <rect class="box" x="20" y="300" width="190" height="62" rx="6"/>
+  <text x="34" y="324" font-weight="700" font-size="13">Dimension.Employee</text>
+  <text x="34" y="344" font-size="12" class="t-muted">who sold it</text>
+  <rect class="box-planned" x="20" y="164" width="190" height="62" rx="6"/>
+  <text x="34" y="188" font-weight="700" font-size="13">Dimension.Date</text>
+  <text x="34" y="208" font-size="12" class="t-muted">when (job doesn't touch it)</text>
+
+  <path class="ln" d="M285,156 L210,70"/>
+  <path class="ln" d="M475,173 L550,70"/>
+  <path class="ln" d="M475,190 L550,78"/>
+  <path class="ln" d="M475,207 L550,320"/>
+  <path class="ln" d="M285,224 L210,320"/>
+  <path class="ln-dash" d="M285,241 L210,200"/>
+  <text x="510" y="136" font-size="11" class="t-muted">2 links</text>
+</svg>
+</div>
+<figcaption>Fact.Sale points at Dimension.Customer twice: once for the customer who bought, once for the customer who pays the bill.</figcaption>
+</figure>
+<p>Why bother? The customer's details are stored once, not on 228,265 rows. And reports become simple: join the fact table to the dimension you care about, group, and add up.</p>
+
+<h3 id="b-scd">Keeping history in dimensions (Valid From / Valid To)</h3>
+<p>Say customer 832 moved from Cork to Dublin in March 2016. A sale from January should still count as a Cork sale. A sale from May is a Dublin sale. If the warehouse simply overwrote the city, every old report would change.</p>
+<p>So the warehouse never overwrites. When something changes, it closes the old row and adds a new one. Each row has two dates saying when it was true:</p>
+<div class="table-wrap">
+<table>
+  <tr><th class="mono">Customer Key</th><th class="mono">WWI Customer ID</th><th>City</th><th class="mono">Valid From</th><th class="mono">Valid To</th></tr>
+  <tr><td class="mono">318</td><td class="mono">832</td><td>Cork</td><td class="mono">2013-01-01</td><td class="mono">2016-03-14</td></tr>
+  <tr><td class="mono">433</td><td class="mono">832</td><td>Dublin</td><td class="mono">2016-03-14</td><td class="mono">9999-12-31 23:59:59.9999999</td></tr>
+  <caption>Same customer, two versions. "Valid To = year 9999" means "still true today". Values are illustrative.</caption>
+</table>
+</div>
+<p>This is called a <strong>slowly changing dimension</strong>, and this exact style (new row per change, with date ranges) is known as <strong>Type 2</strong>. The City job in our test set is precisely this: it closes off current rows by setting their <code>Valid To</code>, then inserts the new versions.</p>
+<p>The important consequence: to find the right Customer Key for a sale, you need the version that was valid <em>at the time of the sale</em>. The Sale job does exactly that lookup, using each sale's <code>Last Modified When</code> time.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 760 200" role="img" aria-labelledby="f3t">
+  <title id="f3t">Timeline: customer 832 has key 318 until March 2016 and key 433 after. A sale in May 2016 picks key 433.</title>
+  <line class="grid" x1="40" y1="150" x2="730" y2="150"/>
+  <text x="40" y="172" font-size="12" class="t-muted" text-anchor="middle">2013</text>
+  <text x="200" y="172" font-size="12" class="t-muted" text-anchor="middle">2014</text>
+  <text x="360" y="172" font-size="12" class="t-muted" text-anchor="middle">2015</text>
+  <text x="520" y="172" font-size="12" class="t-muted" text-anchor="middle">2016</text>
+  <text x="680" y="172" font-size="12" class="t-muted" text-anchor="middle">2017</text>
+  <text x="730" y="192" font-size="11" class="t-muted" text-anchor="end">... until 9999</text>
+  <line class="grid" x1="40" y1="145" x2="40" y2="155"/><line class="grid" x1="200" y1="145" x2="200" y2="155"/>
+  <line class="grid" x1="360" y1="145" x2="360" y2="155"/><line class="grid" x1="520" y1="145" x2="520" y2="155"/>
+  <line class="grid" x1="680" y1="145" x2="680" y2="155"/>
+  <rect class="bar-legacy" x="40" y="70" width="513" height="34" rx="4"/>
+  <text x="54" y="92" font-size="13" font-weight="600">Customer Key 318: Cork</text>
+  <rect class="bar-accent" x="553" y="70" width="177" height="34" rx="4"/>
+  <text x="565" y="92" font-size="13" font-weight="600">Key 433: Dublin</text>
+  <line class="ln-spark" x1="584" y1="30" x2="584" y2="66" marker-end="url(#ah-spark)"/>
+  <circle class="dot-spark" cx="584" cy="26" r="5"/>
+  <text x="596" y="24" font-size="12" class="t-spark" font-weight="600">sale, 2016-05-20</text>
+  <text x="596" y="40" font-size="12" class="t-muted">picks key 433</text>
+  <text x="40" y="132" font-size="12" class="t-muted">Valid From 2013-01-01</text>
+  <text x="553" y="132" font-size="12" class="t-muted">Valid From 2016-03-14</text>
+</svg>
+</div>
+<figcaption>The rule in the job: pick the version where Valid From &lt; sale time &le; Valid To.</figcaption>
+</figure>
+
+<h3 id="b-keys">Surrogate keys and identity columns</h3>
+<p>Notice there are two different numbers for the same customer:</p>
+<ul>
+  <li><code>WWI Customer ID</code> = 832 is the shop's own number for the customer. It never changes. This is called the <strong>business key</strong>.</li>
+  <li><code>Customer Key</code> = 318 or 433 is the warehouse's number for one <em>version</em> of the customer. It's called a <strong>surrogate key</strong>: a made-up number with no meaning except "this row".</li>
+</ul>
+<p>Surrogate keys are handed out automatically by the database: insert a row and SQL Server gives it the next number. A column that numbers itself like that is called an <strong>identity column</strong>. <code>Fact.Sale</code>'s <code>Sale Key</code> works this way.</p>
+<p>One detail that matters a lot for us: if a transaction that used some of those numbers is undone, SQL Server does <strong>not</strong> hand the numbers back. The next insert continues after them. Keep that in mind; it comes back in <a href="#never-match">values that can never match</a>.</p>
+<p>And there's a special key, <strong>0</strong>. When the Sale job can't find a matching dimension row, it fills in 0 rather than leaving the key empty (that's the <code>COALESCE(..., 0)</code> in the code). The warehouse uses 0 to mean "unknown".</p>
+
+<h3 id="b-staging">Staging tables</h3>
+<p>A staging table is a waiting area. The live system's data is dropped there first, raw, and then a job processes it into the real warehouse tables. Like a chef who only cooks from the tray on the counter, never straight from the delivery van.</p>
+<p>For sales, the tray is <code>Integration.Sale_Staging</code>. When a sale arrives there, it has the shop's numbers (<code>WWI Customer ID</code>, <code>WWI City ID</code> and so on) filled in, but the warehouse's keys are empty, because working those out is the job's work:</p>
+<div class="table-wrap">
+<table>
+  <tr><th class="mono">Sale Staging Key</th><th class="mono">WWI Customer ID</th><th class="mono">Last Modified When</th><th class="mono">Customer Key</th></tr>
+  <tr><td class="mono">3107</td><td class="mono">832</td><td class="mono">2016-05-20 11:00</td><td class="empty">empty (NULL)</td></tr>
+  <caption>One staging row, before the job. Values are illustrative.</caption>
+</table>
+</div>
+<p>One Microsoft-specific detail: this staging table is <strong>memory-only</strong> (<code>MEMORY_OPTIMIZED</code>, <code>DURABILITY = SCHEMA_ONLY</code>). SQL Server keeps its layout but never saves its rows to disk, so every restart empties it. That's why our setup reloads it before every run.</p>
+
+<h3 id="b-etl">ETL jobs</h3>
+<p>ETL stands for <strong>extract, transform, load</strong>:</p>
+<ol>
+  <li><strong>Extract</strong>: pull the changed records out of the live system.</li>
+  <li><strong>Transform</strong>: clean them, look things up, reshape them. Here: find the right warehouse key for each customer, city, product and salesperson.</li>
+  <li><strong>Load</strong>: write them into the warehouse tables.</li>
+</ol>
+<p>In Microsoft's design, step 1 is done by a separate Windows-only tool called SSIS, which fills the staging table. Steps 2 and 3 are the stored procedure. <strong>The stored procedure is the thing we migrate.</strong> Because SSIS doesn't run on a Mac, <code>scripts/load_sale_staging.sql</code> does step 1 for us: it asks the shop for one month of sales and drops them on the tray.</p>
+
+<h3 id="b-tx">Transactions and rollback</h3>
+<p>A <strong>transaction</strong> is a group of changes that either all happen or none happen. You start one with <code>BEGIN TRAN</code>. At the end, <code>COMMIT</code> makes the changes permanent, or <code>ROLLBACK</code> undoes all of them as if nothing happened.</p>
+<p>The classic example is a bank transfer: take money from account A, add it to account B. If the machine crashes between the two, you want neither to have happened.</p>
+<p>We use rollback for something more useful. To get the answer key, we need to really run the legacy job, which really changes the warehouse. So <code>run_legacy.py</code> opens a transaction, takes a "before" photo of every table, runs the job, takes an "after" photo, and rolls back. The database ends up exactly as it started, so we can do it again and again.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 760 190" role="img" aria-labelledby="f4t">
+  <title id="f4t">run_legacy.py sequence: load staging outside the transaction, then begin transaction, before photo, run the job, after photo, rollback.</title>
+  <rect class="box-panel" x="12" y="56" width="120" height="64" rx="6"/>
+  <text x="72" y="84" text-anchor="middle" font-size="13" font-weight="600">Load staging</text>
+  <text x="72" y="104" text-anchor="middle" font-size="11" class="t-muted">outside the undo</text>
+  <path class="ln" d="M132,88 L160,88" marker-end="url(#ah)"/>
+  <rect class="box-legacy" x="148" y="24" width="600" height="130" rx="10" style="fill:none"/>
+  <text x="162" y="44" font-size="12" class="t-legacy t-mono" font-weight="600">BEGIN TRAN ... everything in here gets undone</text>
+  <rect class="box" x="168" y="60" width="126" height="56" rx="6"/>
+  <text x="231" y="84" text-anchor="middle" font-size="13" font-weight="600">"Before" photo</text>
+  <text x="231" y="103" text-anchor="middle" font-size="11" class="t-muted t-mono">before/</text>
+  <path class="ln" d="M294,88 L316,88" marker-end="url(#ah)"/>
+  <rect class="box-legacy" x="318" y="60" width="140" height="56" rx="6"/>
+  <text x="388" y="84" text-anchor="middle" font-size="13" font-weight="600">Run legacy job</text>
+  <text x="388" y="103" text-anchor="middle" font-size="11" class="t-muted t-mono">EXEC ...SaleData</text>
+  <path class="ln" d="M458,88 L480,88" marker-end="url(#ah)"/>
+  <rect class="box" x="482" y="60" width="126" height="56" rx="6"/>
+  <text x="545" y="84" text-anchor="middle" font-size="13" font-weight="600">"After" photo</text>
+  <text x="545" y="103" text-anchor="middle" font-size="11" class="t-muted t-mono">after/</text>
+  <path class="ln" d="M608,88 L630,88" marker-end="url(#ah)"/>
+  <rect class="box-pass" x="632" y="60" width="104" height="56" rx="6"/>
+  <text x="684" y="84" text-anchor="middle" font-size="13" font-weight="600">ROLLBACK</text>
+  <text x="684" y="103" text-anchor="middle" font-size="11" class="t-muted">DB unchanged</text>
+  <text x="380" y="178" text-anchor="middle" font-size="12" class="t-muted">The photos are files on disk, so they survive the rollback. The database doesn't keep any change.</text>
+</svg>
+</div>
+<figcaption>From <code>migrator/run_legacy.py</code>. Staging is loaded outside the transaction because SQL Server won't let one transaction touch a memory-only table and a second database at the same time.</figcaption>
+</figure>
+<p>Two small details you might get asked about. The Sale job has its own <code>BEGIN TRAN</code> and <code>COMMIT</code> inside it. When that runs inside our outer transaction, its <code>COMMIT</code> doesn't really commit; SQL Server only makes changes permanent when the outermost transaction commits, and ours rolls back. And because staging is loaded outside the undo, the logbook table <code>Integration.Lineage</code> gains one row per run. That's harmless.</p>
+
+<h3 id="b-spark">Spark, and why one big machine isn't enough</h3>
+<p><strong>Apache Spark</strong> is free software for processing data that's too big for one computer. You write what you want done ("join these tables, filter, add up by region"), and Spark splits the data into chunks called <strong>partitions</strong> and has many machines work on different chunks at the same time.</p>
+<p>A Spark setup has one coordinator, the <strong>driver</strong>, which plans the work, and many <strong>executors</strong> (worker processes, usually on separate machines) which do it. A group of machines working together like that is a <strong>cluster</strong>.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 760 230" role="img" aria-labelledby="f5t">
+  <title id="f5t">Spark: a driver plans the work and sends partitions of the data to several executors that process them in parallel.</title>
+  <rect class="box-spark" x="290" y="16" width="180" height="56" rx="8"/>
+  <text x="380" y="40" text-anchor="middle" font-weight="700" font-size="14">Driver</text>
+  <text x="380" y="59" text-anchor="middle" font-size="12" class="t-muted">plans the work</text>
+  <path class="ln" d="M330,72 L110,128" marker-end="url(#ah)"/>
+  <path class="ln" d="M360,72 L290,128" marker-end="url(#ah)"/>
+  <path class="ln" d="M400,72 L470,128" marker-end="url(#ah)"/>
+  <path class="ln" d="M430,72 L650,128" marker-end="url(#ah)"/>
+  <rect class="box" x="30" y="130" width="160" height="80" rx="6"/>
+  <rect class="box" x="210" y="130" width="160" height="80" rx="6"/>
+  <rect class="box" x="390" y="130" width="160" height="80" rx="6"/>
+  <rect class="box" x="570" y="130" width="160" height="80" rx="6"/>
+  <text x="110" y="154" text-anchor="middle" font-weight="600" font-size="13">Executor 1</text>
+  <text x="290" y="154" text-anchor="middle" font-weight="600" font-size="13">Executor 2</text>
+  <text x="470" y="154" text-anchor="middle" font-weight="600" font-size="13">Executor 3</text>
+  <text x="650" y="154" text-anchor="middle" font-weight="600" font-size="13">Executor 4</text>
+  <text x="110" y="178" text-anchor="middle" font-size="12" class="t-muted t-mono">rows 1 to 1M</text>
+  <text x="290" y="178" text-anchor="middle" font-size="12" class="t-muted t-mono">rows 1M to 2M</text>
+  <text x="470" y="178" text-anchor="middle" font-size="12" class="t-muted t-mono">rows 2M to 3M</text>
+  <text x="650" y="178" text-anchor="middle" font-size="12" class="t-muted t-mono">rows 3M to 4M</text>
+  <text x="110" y="198" text-anchor="middle" font-size="11" class="t-muted">partition</text>
+  <text x="290" y="198" text-anchor="middle" font-size="11" class="t-muted">partition</text>
+  <text x="470" y="198" text-anchor="middle" font-size="11" class="t-muted">partition</text>
+  <text x="650" y="198" text-anchor="middle" font-size="11" class="t-muted">partition</text>
+</svg>
+</div>
+<figcaption>Four executors finish roughly four times faster than one. Need more speed? Add machines.</figcaption>
+</figure>
+<p>Why not just buy one huge server? Three reasons. Big servers get disproportionately expensive, and there's a largest one you can buy. A cluster grows by adding cheap machines, and in the cloud you rent them only for the hour the job runs. And if one machine in a cluster dies, Spark re-runs just that machine's chunk somewhere else.</p>
+<div class="note">
+  <span class="h">Be honest about our setup</span>
+  <p>We run Spark in <strong>local mode</strong> (<code>master("local[*]")</code> in <code>run_spark.py</code>): the driver and executors all run on one laptop, using all its cores. That's normal for development. The same PySpark code runs unchanged on a real cluster. For 5,224 rows Spark is overkill, and actually slower than SQL Server because of start-up time. The point is that Spark is where these jobs are moving to.</p>
+</div>
+
+<h3 id="b-df">DataFrames</h3>
+<p>A <strong>DataFrame</strong> is Spark's word for a table: rows and named, typed columns. If you know SQL tables and Python lists, you already know most of it.</p>
+<div class="pair">
+  <div><span class="cap">Python list of dicts</span>
+<pre>sales = [
+  {"Customer": "Anna", "Quantity": 24},
+  {"Customer": "Ben",  "Quantity": 3},
+]
+big = [s for s in sales
+       if s["Quantity"] &gt; 10]</pre></div>
+  <div><span class="cap">PySpark DataFrame</span>
+<pre>sales = spark.read.parquet("sales.parquet")
+
+big = sales.filter(
+    F.col("Quantity") &gt; 10
+)</pre></div>
+</div>
+<p>Same idea, three differences that matter:</p>
+<ul>
+  <li><strong>It's spread across machines.</strong> The rows aren't in one place in memory; each executor holds some partitions.</li>
+  <li><strong>You never change one.</strong> There's no "update row 5". Every operation (<code>filter</code>, <code>join</code>, <code>withColumn</code>) gives you a new DataFrame. That's why Spark has no <code>UPDATE</code> or <code>DELETE</code> on these tables, and why translating T-SQL means rebuilding whole tables. A T-SQL <code>DELETE</code> becomes "keep every row except those". A T-SQL <code>UPDATE</code> becomes "make a new table with every row, some with new values".</li>
+  <li><strong>It's lazy.</strong> Next section.</li>
+</ul>
+<p>In our code you'll see <code>F.col("Customer Key")</code>. <code>F</code> is <code>pyspark.sql.functions</code>, and <code>F.col</code> means "the column called this". It's needed because our column names have spaces.</p>
+
+<h3 id="b-lazy">Lazy evaluation</h3>
+<p>When you write <code>sales.filter(...)</code>, Spark doesn't filter anything. It writes down the step in a plan and hands you back instantly. It only does the work when you ask for an actual result, like counting rows, collecting them into Python, or writing a file. Those are called <strong>actions</strong>. Everything else is a <strong>transformation</strong>, which just adds to the plan.</p>
+<p>Why? Because once Spark sees the whole plan, it can be smart: skip columns nobody uses, filter before joining instead of after, and avoid moving data between machines more than needed.</p>
+<p>The catch is that mistakes show up late. A typo in a column name inside a join may not blow up on that line; it blows up when something finally triggers the work. Our own <code>run_spark.py</code> has a comment about exactly this: <em>"Spark is lazy, so errors in the job's transformations often only surface here"</em>, at the step that writes the output files.</p>
+
+<h3 id="b-pyspark">PySpark</h3>
+<p>Spark itself is written in Scala and runs on Java. <strong>PySpark</strong> is the Python way to use it: you write Python, and PySpark passes your plan to the Spark engine. That's why our setup needs Java installed (<code>JAVA_HOME</code> in <code>.env</code>) even though we only write Python. The challenge asks for the legacy jobs to be migrated to PySpark.</p>
+
+<h3 id="b-parquet">Parquet vs CSV</h3>
+<p>We save every table snapshot as a <strong>Parquet</strong> file. Here's why not CSV:</p>
+<div class="table-wrap">
+<table>
+  <tr><th></th><th>CSV</th><th>Parquet</th></tr>
+  <tr><td>Types</td><td>Everything is text. Is <code>0012</code> a number or a code? Is an empty cell NULL or an empty string? You guess.</td><td>Every column has a stored type: decimal, date, whole number, text.</td></tr>
+  <tr><td>Exact decimals</td><td><code>4.10</code> often comes back as the float <code>4.1</code> or <code>4.0999999</code>.</td><td>Stores <code>decimal(18,2)</code> as an exact decimal.</td></tr>
+  <tr><td>Size and speed</td><td>Big, read row by row.</td><td>Compressed, and stored column by column, so a query that needs 3 of 26 columns only reads those 3.</td></tr>
+  <tr><td>Spark</td><td>Can read it, but has to guess types.</td><td>Reads it natively. It's the standard format in Spark and data lakes.</td></tr>
+</table>
+</div>
+<p>We write the files with <strong>pyarrow</strong>, a Python library for typed tables, rather than pandas. A specific reason: the warehouse marks current rows with <code>Valid To</code> = year 9999, and pandas' default date type can't go past the year 2262. pyarrow handles it.</p>
+<p>One limit worth knowing: SQL Server stores times to 100 nanoseconds (7 decimal places), and Python's datetime stops at microseconds (6). So the snapshots drop the last digit. It would only matter if two timestamps differed by less than a microsecond; the exact match on <code>Sale_Staging</code> suggests it hasn't so far.</p>
+
+<h3 id="b-lake">Data lakes</h3>
+<p>A <strong>data lake</strong> is a big pile of files (usually Parquet) in cheap cloud storage, like Amazon S3 or Azure Data Lake Storage, which engines like Spark read directly. No database server in the middle. When companies move from SQL Server to Spark, their warehouse tables often become folders of Parquet files in a lake.</p>
+<p>We don't have a real lake. Our <code>snapshots/</code> folder plays that role on a laptop: Spark reads Parquet files from it and writes Parquet files back. Swap the folder for cloud storage and the PySpark job doesn't change.</p>
+
+<h3 id="b-docker">Docker</h3>
+<p><strong>Docker</strong> runs a program inside a sealed box called a <strong>container</strong>, which carries its own mini operating system. SQL Server is built for Windows and Linux, not macOS, so on the Mac we run Microsoft's official SQL Server container. Our <code>docker-compose.yml</code> describes the box: which image, which port, where the data lives.</p>
+<p>The box connects to the outside through a port. <code>1433:1433</code> means "port 1433 on the Mac goes to port 1433 in the box", so Python just connects to <code>localhost,1433</code>. The box can't see the Mac's folders, which is why the backup files go in with <code>docker cp</code>.</p>
+<p>A Mac-specific gotcha from the devlog: SQL Server's image is built for Intel chips. On an Apple-chip Mac it runs through an emulator, and with Docker's default emulator it crashed after about 8 minutes. Turning on Docker's Rosetta setting fixed it.</p>
+
+<h3 id="b-ai">What Claude does here, and why its output has to be checked</h3>
+<p><strong>Claude</strong> is a large language model (LLM), made by Anthropic. You give it text, it writes text back. It's trained on huge amounts of text and code, so it's good at writing code that does what a description says.</p>
+<p>In our project, <code>migrator/translate.py</code> builds one long message (a <strong>prompt</strong>) and sends it to Claude through the <code>claude</code> command-line tool. The prompt has three parts:</p>
+<ol>
+  <li>A set of rules: "write a function <code>run(spark, tables)</code> that returns the changed tables", "Spark has no UPDATE, rebuild the table instead", "match SQL Server's behaviour for NULLs, integer division, decimals and trimming", "only use PySpark, no files, no database connections".</li>
+  <li>The table layouts: each table's name, its column names and their types. No data.</li>
+  <li>The legacy stored procedure's code.</li>
+</ol>
+<p>Claude replies with one Python code block, which gets saved to <code>jobs_pyspark/sale.py</code>.</p>
+<p>Why check it? Because an LLM writes the most likely-looking code, and likely-looking isn't the same as correct. It can miss a rule that the old system applies silently (like whole-number division), break a tie differently, or handle an empty value differently. It does this confidently. It has no way to know it's wrong unless something outside it says so. In our setup, that something is the legacy job's real output.</p>
+</section>
+
+<!-- NEXT -->
+
+</main>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById("theme-toggle");
+  function current() {
+    var t = root.getAttribute("data-theme");
+    if (t) return t;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function label() { btn.textContent = current() === "dark" ? "Light mode" : "Dark mode"; }
+  try { var saved = localStorage.getItem("lm-guide-theme"); if (saved) root.setAttribute("data-theme", saved); } catch (e) {}
+  label();
+  btn.addEventListener("click", function () {
+    var next = current() === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("lm-guide-theme", next); } catch (e) {}
+    label();
+  });
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", label);
+  }
+
+  // Contents, built from the h2 headings
+  var sections = Array.prototype.slice.call(document.querySelectorAll("main > section[id]"));
+  function build(container) {
+    var label = document.createElement("p"); label.className = "label"; label.textContent = "Contents";
+    var ol = document.createElement("ol");
+    sections.forEach(function (s) {
+      var h = s.querySelector("h2"); if (!h) return;
+      var title = h.cloneNode(true); var n = title.querySelector(".num"); if (n) n.remove();
+      var li = document.createElement("li"); var a = document.createElement("a");
+      a.href = "#" + s.id; a.textContent = title.textContent.trim(); a.dataset.target = s.id;
+      li.appendChild(a); ol.appendChild(li);
+    });
+    if (container.id === "toc-rail") container.appendChild(label);
+    container.appendChild(ol);
+  }
+  build(document.getElementById("toc-rail"));
+  build(document.getElementById("toc-inline"));
+  document.querySelectorAll("#toc-inline a").forEach(function (a) {
+    a.addEventListener("click", function () { var d = document.querySelector("details.toc-inline"); if (d) d.open = false; });
+  });
+  if ("IntersectionObserver" in window) {
+    var links = document.querySelectorAll("#toc-rail a");
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          links.forEach(function (l) { l.classList.toggle("active", l.dataset.target === en.target.id); });
+        }
+      });
+    }, { rootMargin: "0px 0px -70% 0px" });
+    sections.forEach(function (s) { obs.observe(s); });
+  }
+
+  // Q&A open/close all
+  var openAll = document.getElementById("qa-open"), closeAll = document.getElementById("qa-close");
+  if (openAll) openAll.addEventListener("click", function () { document.querySelectorAll("details.qa").forEach(function (d) { d.open = true; }); });
+  if (closeAll) closeAll.addEventListener("click", function () { document.querySelectorAll("details.qa").forEach(function (d) { d.open = false; }); });
+})();
+</script>
+</body>
+</html>
