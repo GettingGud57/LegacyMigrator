@@ -8,6 +8,10 @@ run_legacy.py: run one legacy job on SQL Server and save the tables it touches.
 The job runs inside a transaction that gets rolled back at the end,
 so the database is left exactly as it was and this can be rerun any time.
 
+What to run comes from the job spec jobs/<job>.json (see migrator/jobspec.py).
+The tables to save and their key columns are read from SQL Server's own metadata,
+unless the spec lists them by hand.
+
 Usage (from the repo root):
     python migrator/run_legacy.py sale
 """
@@ -22,24 +26,8 @@ import pyarrow.parquet as pq
 import pyodbc
 from dotenv import load_dotenv
 
-# One entry per legacy job. "tables" = everything the job reads or writes.
-JOBS = {
-    "sale": {
-        "database": "WideWorldImportersDW",
-        "staging_script": "scripts/load_sale_staging.sql",
-        "proc": "Integration.MigrateStagedSaleData",
-        "tables": [
-            "Integration.Sale_Staging",
-            "Integration.Lineage",
-            "Integration.[ETL Cutoff]",
-            "Dimension.City",
-            "Dimension.Customer",
-            "Dimension.[Stock Item]",
-            "Dimension.Employee",
-            "Fact.Sale",
-        ],
-    },
-}
+import discover
+import jobspec
 
 # pyodbc can't read map columns (geography/geometry), so read them as text instead
 SPATIAL_TYPES = {"geography", "geometry"}
@@ -105,42 +93,76 @@ def snapshot(cur, tables, folder):
     folder.mkdir(parents=True, exist_ok=True)
     counts = {}
     for table in tables:
-        name = table.replace("[", "").replace("]", "")
+        name = discover.file_name(table)
         data = read_table(cur, table)
         pq.write_table(data, folder / f"{name}.parquet")
         counts[name] = data.num_rows
     return counts
 
 
-def main():
-    job_name = sys.argv[1] if len(sys.argv) > 1 else "sale"
-    job = JOBS[job_name]
-    out = Path("snapshots") / job_name
-    cur = connect(job["database"])
+def set_staging_params(cur, params):
+    """Hand the staging script its parameters through SQL Server's session context.
+    The script reads them with SESSION_CONTEXT(N'name') and uses its own default when one is NULL."""
+    for name in ("window_from", "window_to"):
+        cur.execute("EXEC sp_set_session_context ?, ?", name, params.get(name))
 
-    # Outside the transaction: SQL Server won't let one transaction touch an
-    # in-memory table and a second database, and this script reads the shop database.
-    print("1. Loading staging")
-    run_script(cur, job["staging_script"])
 
-    print("2. Running the legacy job inside a transaction")
+def stage(cur, spec):
+    """Fill the staging table(s). Outside any transaction: SQL Server won't let one transaction
+    touch an in-memory table and a second database, and the staging script reads the shop database."""
+    set_staging_params(cur, spec.get("staging_params", {}))
+    run_script(cur, spec["staging_script"])
+
+
+def run_in_transaction(cur, spec, tables, before_dir, after_dir):
+    """Snapshot, run the procedure, snapshot again, roll back. Returns (return code, seconds, counts)."""
     cur.execute("BEGIN TRAN")
     try:
-        before = snapshot(cur, job["tables"], out / "before")
+        before = snapshot(cur, tables, before_dir) if before_dir else None
         proc_started = time.perf_counter()
-        cur.execute(f"SET NOCOUNT ON; DECLARE @r int; EXEC @r = {job['proc']}; SELECT @r")
+        cur.execute(f"SET NOCOUNT ON; DECLARE @r int; EXEC @r = {spec['proc']}; SELECT @r")
         return_code = cur.fetchone()[0]
         proc_seconds = time.perf_counter() - proc_started
-        after = snapshot(cur, job["tables"], out / "after")
+        after = snapshot(cur, tables, after_dir)
     finally:
         cur.execute("IF @@TRANCOUNT > 0 ROLLBACK")
+    return return_code, proc_seconds, before, after
+
+
+def job_tables(cur, spec):
+    """The tables to snapshot and their keys: from the spec if listed, else from SQL Server metadata."""
+    found = discover.tables(cur, spec["proc"])
+    tables = spec.get("tables") or [t["table"] for t in found]
+    keys = {discover.file_name(t): discover.primary_key(cur, t) for t in tables}
+    return tables, keys, found
+
+
+def main():
+    job_name = sys.argv[1] if len(sys.argv) > 1 else "sale"
+    spec = jobspec.load(job_name)
+    out = Path("snapshots") / job_name
+    cur = connect(spec["database"])
+
+    tables, keys, found = job_tables(cur, spec)
+    written = sorted(t["table"] for t in found if t["written"])
+    print(f"0. {spec['proc']} touches {len(tables)} tables (writes {len(written)}: {', '.join(written)})")
+
+    print("1. Loading staging")
+    stage(cur, spec)
+
+    print("2. Running the legacy job inside a transaction")
+    return_code, proc_seconds, before, after = run_in_transaction(
+        cur, spec, tables, out / "before", out / "after")
     print("3. Rolled back, database unchanged")
 
     meta = {
         "job": job_name,
-        "proc": job["proc"],
+        "proc": spec["proc"],
+        "staging_params": spec.get("staging_params", {}),
         "return_code": return_code,
         "proc_seconds": round(proc_seconds, 3),
+        "tables_found": found,
+        "keys": keys,
         "rows_before": before,
         "rows_after": after,
         "taken_at": time.strftime("%Y-%m-%d %H:%M:%S"),

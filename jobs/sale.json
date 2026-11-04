@@ -2,19 +2,5 @@
   "database": "WideWorldImportersDW",
   "proc": "Integration.MigrateStagedSaleData",
   "legacy_sql": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
-  "staging_script": "scripts/load_sale_staging.sql",
-  "keys": {
-    "Integration.Sale_Staging": ["Sale Staging Key"],
-    "Integration.Lineage": ["Lineage Key"],
-    "Integration.ETL Cutoff": ["Table Name"],
-    "Fact.Sale": ["Sale Key"],
-    "Dimension.City": ["City Key"],
-    "Dimension.Customer": ["Customer Key"],
-    "Dimension.Stock Item": ["Stock Item Key"],
-    "Dimension.Employee": ["Employee Key"]
-  },
-  "ignore": {
-    "Fact.Sale": {"Sale Key": "identity column: SQL Server numbers new rows itself, in an order nobody controls, and never rolls the counter back"},
-    "Integration.Lineage": {"Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran"}
-  }
+  "staging_script": "scripts/load_sale_staging.sql"
 }
