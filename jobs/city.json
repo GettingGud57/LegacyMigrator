@@ -1,0 +1,8 @@
+{
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedCityData",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+  "staging_script": "scripts/load_city_staging.sql",
+  "staging_params": {"window_from": "2015-06-06 12:31:17", "window_to": "2015-07-06 12:31:17"},
+  "why_this_window": "The default month (May-June 2016) has no city, state or country changes, so City_Staging would be empty and any translation would pass. On 2015-07-01 13 states and 18 countries changed, which produces new versions of thousands of cities."
+}

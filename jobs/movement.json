@@ -1,0 +1,6 @@
+{
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedMovementData",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+  "staging_script": "scripts/load_movement_staging.sql"
+}

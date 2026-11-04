@@ -6,9 +6,13 @@
 
 SET NOCOUNT ON;
 
--- 1. Pick a time window: the month up to the warehouse's last load
-DECLARE @NewCutoff  datetime2(7) = (SELECT [Cutoff Time] FROM Integration.[ETL Cutoff] WHERE [Table Name] = N'Sale');
-DECLARE @LastCutoff datetime2(7) = DATEADD(month, -1, @NewCutoff);
+-- 1. Pick a time window. Default: the month up to the warehouse's last load.
+--    run_legacy.py can pass another window (the job spec's staging_params) through the session
+--    context. By hand: EXEC sp_set_session_context N'window_from', N'2016-01-01'; (same for window_to)
+DECLARE @NewCutoff  datetime2(7) = COALESCE(CAST(SESSION_CONTEXT(N'window_to') AS datetime2(7)),
+                                            (SELECT [Cutoff Time] FROM Integration.[ETL Cutoff] WHERE [Table Name] = N'Sale'));
+DECLARE @LastCutoff datetime2(7) = COALESCE(CAST(SESSION_CONTEXT(N'window_from') AS datetime2(7)),
+                                            DATEADD(month, -1, @NewCutoff));
 
 -- 2. Clear staging (in-memory tables don't allow TRUNCATE)
 DELETE FROM Integration.Sale_Staging;
