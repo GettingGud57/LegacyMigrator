@@ -132,13 +132,12 @@ button.theme:hover { border-color: var(--accent); }
 
 /* Contents */
 nav.toc { font-family: var(--display); font-size: 0.92rem; }
-nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: toc; }
-nav.toc li { counter-increment: toc; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 nav.toc a {
   display: grid; grid-template-columns: 2.2em 1fr; gap: 4px;
   color: var(--fg); text-decoration: none; padding: 5px 8px; border-radius: 5px; line-height: 1.3;
 }
-nav.toc a::before { content: counter(toc, decimal-leading-zero); font-family: var(--mono); font-size: 0.78rem; color: var(--muted); padding-top: 2px; }
+nav.toc a .n { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); padding-top: 2px; }
 nav.toc a:hover { background: var(--panel); }
 nav.toc a.active { background: var(--accent-soft); color: var(--accent); }
 nav.toc .label { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px 8px; }
@@ -219,6 +218,7 @@ figure.fig { margin: 8px 0 24px; }
 .fig svg { display: block; width: 100%; height: auto; }
 .fig.wide svg { min-width: 680px; }
 .fig figcaption { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+@media (max-width: 720px) { .fig.wide figcaption::before { content: "Swipe sideways to see the whole picture. "; font-weight: 600; } }
 svg text { font-family: var(--display); fill: var(--fg); }
 svg .t-muted { fill: var(--muted); }
 svg .t-mono { font-family: var(--mono); }
@@ -388,7 +388,7 @@ footer.end { margin-top: 64px; padding-top: 16px; border-top: 1px solid var(--li
   <span class="who">6. What it means for EXL</span>
   <p>In insurance, a migration isn't done when the code runs. It's done when the numbers match and someone can show they match. This tool turns that check into something automatic and repeatable for every job. A pass isn't a mathematical proof, and we say so. It's strong evidence, and it tells you exactly where to look when there's a problem.</p>
 </div>
-<p class="small">Beat 4 says "now comparing" and "adding". Update it as things land. See <a href="#status">Where things stand</a>.</p>
+<p class="small">Beat 4 says "now comparing" and "adding". Update it as things land. The test-bench branch reports all 8 tables passing; once that's merged and re-run, beat 4 can say "every table the job touches matched". See <a href="#status">What's been built so far</a>.</p>
 </section>
 
 <section id="problem">
@@ -820,8 +820,8 @@ big = sales.filter(
   <text x="335" y="345" text-anchor="middle" font-weight="700" font-size="14" class="t-mono">translate.py</text>
   <text x="335" y="365" text-anchor="middle" font-size="11" class="t-muted">builds the prompt</text>
   <path class="ln-dash" d="M482,236 L420,330" marker-end="url(#ah)"/>
-  <text x="428" y="270" font-size="11" class="t-muted">column names</text>
-  <text x="428" y="284" font-size="11" class="t-muted">+ types only</text>
+  <text x="434" y="276" font-size="11" class="t-muted" text-anchor="end">column names</text>
+  <text x="434" y="290" font-size="11" class="t-muted" text-anchor="end">+ types only</text>
   <path class="ln" d="M320,379 L320,436" marker-end="url(#ah)"/>
   <path class="ln" d="M350,436 L350,383" marker-end="url(#ah)"/>
   <text x="300" y="414" font-size="11" class="t-muted" text-anchor="end">prompt</text>
@@ -853,7 +853,7 @@ big = sales.filter(
   <text x="937" y="176" text-anchor="middle" font-weight="700" font-size="14" class="t-mono">diff.py</text>
   <text x="937" y="196" text-anchor="middle" font-size="11" class="t-muted">hand-written</text>
   <path class="ln-legacy" d="M662,66 L900,66 L920,146" marker-end="url(#ah-legacy)"/>
-  <path class="ln-spark" d="M850,379 L955,379 L955,214" marker-end="url(#ah-spark)"/>
+  <path class="ln-spark" d="M850,379 L1004,379 L1004,180 L998,180" marker-end="url(#ah-spark)"/>
   <rect class="box-pass" x="880" y="232" width="114" height="64" rx="8"/>
   <text x="937" y="258" text-anchor="middle" font-weight="800" font-size="14" class="t-pass">PASS</text>
   <text x="937" y="278" text-anchor="middle" font-size="11" class="t-muted">or FAIL + report</text>
@@ -1047,7 +1047,7 @@ first 1 changes:
 </table>
 </div>
 <p>Ignoring a column is a decision a human makes and writes down, per job. It's a short list, and every ignored column is named. The rest of the row is still compared in full, and the row count is still checked, because every row still has to find its twin. For <code>Sale_Staging</code> the ignore list is empty: all 26 columns were compared.</p>
-<p class="small">The per-job ignore lists are <span class="chip planned">Planned</span>. <code>reconcile</code> already takes an <code>ignore_cols</code> argument.</p>
+<p class="small">On <code>main</code>, <code>reconcile</code> takes an <code>ignore_cols</code> argument but no job uses it yet. Per-job ignore lists, with a written reason for each column, are <span class="chip wip">In progress</span> on the test-bench branch, which also keeps checking ignored columns are filled on the same rows (see <a href="#status">What's been built so far</a>).</p>
 
 <h3>Checks on the checker</h3>
 <p>How do you know the comparison isn't just saying PASS to everything? Two built-in controls:</p>
@@ -1096,6 +1096,7 @@ first 1 changes:
   <text x="740" y="111" text-anchor="end" font-size="11" class="t-fail" font-weight="600">nothing below this line reaches the AI</text>
 </svg>
 </div>
+<figcaption>Planned design. The dev side feeds the retry loop; holdout results only ever go to people.</figcaption>
 </figure>
 
 <h3>"The AI never grades its own work"</h3>
@@ -1103,7 +1104,7 @@ first 1 changes:
 <ol>
   <li><strong>The answer key comes from the old system</strong>, not from the AI. It's the real output of the real legacy job, saved before the AI is involved.</li>
   <li><strong>The AI never sees the answer key.</strong> Its prompt has the old code and the table layouts, and nothing else. You can show this: it's all in <code>build_prompt</code> in <code>migrator/translate.py</code>.</li>
-  <li><strong>The judge is hand-written.</strong> <code>diff.py</code> isn't AI-written, by project rule. So the AI can't write a translation and a lenient test that agree with each other.</li>
+  <li><strong>The judge is hand-written.</strong> <code>diff.py</code> isn't AI-written, by project rule. So the AI can't write a translation and a lenient test that agree with each other. (One caveat about a new file on the test-bench branch is in <a href="#status">What's been built so far</a>.)</li>
 </ol>
 <p>Why does this matter? If you ask an AI to write code and then also write the tests for it, both come from the same understanding. If it misunderstood the job, the tests will share the misunderstanding and pass. Using the legacy system as the referee breaks that circle.</p>
 
@@ -1135,7 +1136,7 @@ first 1 changes:
   <tr><td><code>run_spark.py</code></td><td><span class="chip built">Built</span></td><td>Local Spark on the Mac.</td></tr>
   <tr><td><code>diff.py</code> (<code>reconcile</code>)</td><td><span class="chip built">Built</span></td><td>Hand-written. Whole-row multiset check plus key-based explanation.</td></tr>
   <tr><td>Sale job, <code>Integration.Sale_Staging</code></td><td><span class="chip built">PASS</span></td><td>5,224 rows x 26 columns identical to the legacy output.</td></tr>
-  <tr><td>Sale job, <code>Fact.Sale</code>, <code>Integration.Lineage</code>, <code>Integration.[ETL Cutoff]</code></td><td><span class="chip wip">In progress</span></td><td>Not compared yet. Need an ignore list (<code>Sale Key</code>, <code>Data Load Completed</code>).</td></tr>
+  <tr><td>Sale job, <code>Fact.Sale</code>, <code>Integration.Lineage</code>, <code>Integration.[ETL Cutoff]</code></td><td><span class="chip wip">In progress</span></td><td>Not compared on <code>main</code> yet. Need an ignore list (<code>Sale Key</code>, <code>Data Load Completed</code>). The test-bench branch reports all 8 tables passing; not merged.</td></tr>
   <tr><td>City and Movement jobs</td><td><span class="chip wip">In progress</span></td><td>SQL is in <code>legacy_jobs/wwi/</code>. Not in <code>run_legacy.py</code>'s job list yet.</td></tr>
   <tr><td><code>loop.py</code> (retry with feedback)</td><td><span class="chip planned">Planned</span></td><td>Hand-written by rule. Target 10 Nov.</td></tr>
   <tr><td>Holdout dataset</td><td><span class="chip wip">In progress</span></td><td>Test-bench branch.</td></tr>
@@ -1147,10 +1148,388 @@ first 1 changes:
 </div>
 
 <h3>On other branches</h3>
-<!-- SIBLINGS -->
+<p>Three other work sessions run in parallel. Checked with <code>git fetch</code> on 4 November 2026. Nothing below is on <code>main</code> yet, so say "we're finishing" or "on our test bench", not "it's done".</p>
+
+<h4><code>claude/test-bench</code> <span class="chip wip">On branch, not merged yet</span></h4>
+<p>A test bench that can run outside the Mac, plus a full verdict for every table. Four commits so far:</p>
+<ul>
+  <li><strong>Full verdict for all 8 tables.</strong> A new <code>migrator/check.py</code> runs <code>diff.reconcile</code> on every table the job touches and writes <code>snapshots/&lt;job&gt;/check.json</code>. A new job file, <code>jobs/sale.json</code>, lists each table's key and the columns that can never match, each with a written reason (<code>Sale Key</code>: identity column; <code>Data Load Completed</code>: <code>SYSDATETIME()</code>). The branch's commit message reports: <strong>"Sale passes on all 8 tables."</strong> That result is from that branch's bench and hasn't been merged or re-run on the Mac yet.</li>
+  <li><strong>Ignored columns aren't ignored blindly.</strong> <code>check.py</code> still requires an ignored column to be filled in on exactly the same rows as in the legacy output, compares rows the legacy job didn't touch in every column, ignored ones included, and fails if the Spark output repeats a key. That's a stronger answer to "isn't ignoring columns hiding bugs?" (Q12).</li>
+  <li><strong>One-command setup.</strong> <code>scripts/bench.sh</code> takes a fresh Linux machine or Mac to a ready bench: starts SQL Server, downloads both backups and checks their SHA-256 fingerprints, restores them, installs the driver and Python packages, and checks the connection.</li>
+  <li><strong>Pinned versions and timings.</strong> A <code>requirements.txt</code> (which <code>SETUP (1).md</code> mentions but <code>main</code> doesn't have yet) pins PySpark 4.2.1, which needs Java 17 or 21. <code>.env.example</code> shows the settings. <code>run_legacy.py</code> now records how long the procedure took, and <code>run_spark.py</code> writes its timings to <code>run.json</code>.</li>
+</ul>
+<p>Still to come on that branch, according to its own code and the task list: a <code>probe.py</code> that runs the legacy job twice to find unstable columns automatically (referred to in <code>jobspec.py</code>, not in the branch yet), the holdout dataset, the City and Movement jobs, and planted-bug tests.</p>
+<div class="note warn">
+  <span class="h">Get this wording right once <code>check.py</code> merges</span>
+  <p><code>diff.py</code>, which compares rows, is hand-written. <code>check.py</code>, which decides which rows and columns to hand it and combines the results into the final verdict, was written with AI help (its commits are co-authored by Claude). So "the part that judges the AI isn't written by AI" is only fully true if the repo owner reviews <code>check.py</code> line by line and owns it, or rewrites it. Ask them which. Until then, say: "the comparison itself is hand-written".</p>
+</div>
+
+<h4><code>claude/dashboard</code> <span class="chip wip">In progress</span></h4>
+<p>The review web app that reads <code>results.json</code>. Nothing had been pushed when this guide was written.</p>
+
+<h4><code>claude/review</code> <span class="chip wip">In progress</span></h4>
+<p>A bug review of the code. Nothing had been pushed when this guide was written.</p>
+<p class="small">None of the three branches had a <code>docs/reports/</code> page yet. When they do, read them and update this section.</p>
 </section>
 
-<!-- NEXT -->
+<section id="story">
+<h2><span class="num">08</span>The story for judges</h2>
+
+<h3>The sqlglot finding</h3>
+<p>This is the best single fact in the project, because it's surprising and it's ours.</p>
+<p><strong>sqlglot</strong> is a popular open-source Python tool that translates SQL between dialects, including T-SQL to Spark SQL. It's the obvious "why not just use this?" option. So on 30 October we tried it on Microsoft's 13 <code>Integration.MigrateStaged*</code> procedures: about 1,000 lines, 141 SQL statements.</p>
+<ul>
+  <li>It couldn't read a whole procedure as-is. Once the <code>CREATE PROCEDURE ... BEGIN / END</code> wrapper was removed, it read all 141 statements.</li>
+  <li>Translating to Spark with strict error checking turned on, it reported <strong>141 out of 141 successes</strong>.</li>
+  <li>But the output still contained T-SQL-only statements, like <code>UPDATE ... FROM ... JOIN</code> and <code>DELETE s FROM ...</code>, which Spark rejects.</li>
+</ul>
+<div class="say">
+  <span class="who">Say this</span>
+  <p>A standard tool told us it had translated 141 out of 141 statements successfully, with strict errors on, and the result wouldn't even run in Spark. That's a silent failure. If a tool's own "success" can't be trusted, the only thing you can trust is checking the output against the real system. That's what we built.</p>
+</div>
+<p>Be fair to sqlglot if asked: it's a good tool for what it's designed for, which is translating individual queries. Stored procedures that change tables step by step are a different problem, because Spark DataFrames don't have UPDATE or DELETE at all. You have to restructure the logic, not swap words.</p>
+<div class="note">
+  <span class="h">Have the evidence ready <span class="chip confirm">To confirm</span></span>
+  <p>The sqlglot probe isn't in the repo, only its results in the devlog. If a judge says "show me", you'll want the script and its output. Ask the repo owner to add it (in <code>scripts/</code>, not <code>legacy_jobs/</code>), or at least keep a screenshot.</p>
+</div>
+
+<h3>What's new about our approach</h3>
+<p>Don't claim nobody has ever compared old and new outputs. Migration teams do that, often by hand, at the end. Claim what's actually different:</p>
+<ul>
+  <li><strong>The answer key is captured automatically from the real legacy system</strong>, by running the real job inside a transaction and undoing it. No one has to write expected results by hand, and nothing in production changes.</li>
+  <li><strong>The check is the whole output, not a sample.</strong> Every row, every column, duplicates counted, on every table the job changes.</li>
+  <li><strong>The AI is kept away from the answers on purpose</strong>, and the part that decides pass or fail isn't written by AI.</li>
+  <li><strong>A holdout dataset</strong> guards against the AI tuning itself to our tests (in progress).</li>
+  <li><strong>A fail is useful.</strong> It says which table, which row, which column, what value on each side. That's where an engineer starts.</li>
+</ul>
+<p>Put together: AI does the fast part (writing code), and a strict, independent check does the part you can't skip (showing the numbers didn't change).</p>
+
+<h3>How it fits EXL</h3>
+<p>EXL does a lot of data and analytics work for insurers. Insurers have exactly the kind of estate this targets: years of nightly SQL and SAS jobs feeding claims, premium and reserving reports, and a regulator and auditors who need the numbers to stay right through any change.</p>
+<ul>
+  <li><strong>It speeds up the slow part of migrations.</strong> Reconciliation (showing old and new agree) is a big share of the effort in any migration, and it's usually manual.</li>
+  <li><strong>It gives an audit trail.</strong> For every job: the input snapshot, the legacy output, the new output, and the comparison. That's the kind of evidence a client's risk team asks for.</li>
+  <li><strong>It's honest about risk.</strong> It doesn't claim the AI is right. It shows where it's right, and points to where it isn't.</li>
+</ul>
+<p class="small">The hackathon brief and EXL's own wording aren't in the repo. Before the finale, check the challenge text and use its words when you describe the fit.</p>
+</section>
+
+<section id="rai">
+<h2><span class="num">09</span>Responsible AI</h2>
+<p>You own the Responsible AI note, so this section is the material for it. Everything here is either true of the code today or clearly marked as a plan or a recommendation.</p>
+
+<h3>Verification over trust</h3>
+<p>The design principle: never accept AI output because it looks right or because the AI says it's right. Accept it only when an independent check, based on the real legacy system, agrees. A translation that fails is never marked as passed, however close it is.</p>
+
+<h3>Keeping the answers away from the AI</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>The AI sees</th><th>The AI never sees</th></tr>
+  <tr><td>
+    <ul style="margin:0">
+      <li>The rules in <code>translate.py</code></li>
+      <li>The legacy stored procedure's code</li>
+      <li>Each table's name, column names and column types</li>
+      <li>Later, with the loop: mismatches from the <em>dev</em> data</li>
+    </ul>
+  </td><td>
+    <ul style="margin:0">
+      <li>The answer key (<code>after/</code>)</li>
+      <li>Any data rows (today)</li>
+      <li>The comparison code</li>
+      <li>Anything from the holdout data, ever</li>
+    </ul>
+  </td></tr>
+</table>
+</div>
+<p>Claude is also started from an empty temporary folder, so there are no project files next to it. That's a sensible precaution, not a locked sandbox. A production version should run the translator with no file or network access beyond the AI call itself.</p>
+
+<h3>The holdout</h3>
+<p>Explained in <a href="#compare">How the comparison works</a>. Short version for the note: a second dataset that only the final check runs on, whose results go to people and never back to the AI. It's how we tell "understood the job" from "learned to pass our tests". <span class="chip wip">In progress</span></p>
+
+<h3>People stay in charge</h3>
+<p>The tool doesn't switch anything off or deploy anything. It produces evidence: a pass or a fail, with details. A person decides whether a job is migrated. The AI's code is short and readable, and it should still be reviewed by an engineer, especially for jobs that matter most.</p>
+
+<h3>Limits we state openly</h3>
+<ul>
+  <li><strong>A pass is evidence, not proof.</strong> It covers the data we tested. Recommend a parallel run on production data before retiring a legacy job.</li>
+  <li><strong>Only T-SQL stored procedures so far.</strong> No SAS, no SSIS packages, no dynamic SQL tested.</li>
+  <li><strong>Only what lands in database tables is checked.</strong> A job that also sends an email, writes a file or calls another system has side effects we don't capture.</li>
+  <li><strong>Laptop scale.</strong> Spark runs in local mode, and the comparison loads tables into Python memory. Fine for hundreds of thousands of rows, not billions.</li>
+  <li><strong>Sample data.</strong> Microsoft's WideWorldImporters is realistic but it's not insurance data, and it's small.</li>
+  <li><strong>Some columns can't be compared</strong> (clock times, auto-numbered keys) and are listed per job.</li>
+</ul>
+
+<h3>Data privacy</h3>
+<p><strong>Today</strong>, the only things sent to the AI are code and table layouts: the stored procedure, and column names and types. No data rows. That's already a real consideration for a company, because code and table names can reveal business rules and how a business is set up.</p>
+<p><strong>Once the retry loop exists</strong>, the feedback will include real values from mismatched rows, like "row 3107, Bill To Customer Key: 0 in legacy, empty in Spark". On insurance data, rows can contain names, addresses, dates of birth, policy and claim details. That's personal data, and in Europe GDPR applies to it.</p>
+<p>How a real insurer would handle it. These are our recommendations, not features we've built:</p>
+<ul>
+  <li><strong>Send as little as possible.</strong> Only the mismatched columns, only a few rows. (The current report already shows only the first 10 changes by default.) The AI needs the pattern of the mistake, not a person's name.</li>
+  <li><strong>Mask sensitive columns</strong> before anything leaves: replace names with tokens, shift dates, round amounts. Key and code columns, which usually explain a mismatch, can often be sent as they are.</li>
+  <li><strong>Use synthetic data for the dev loop.</strong> Generate fake data with the same layout and the same awkward cases (NULLs, history changes, ties). The AI learns from fake data; the real data is used only for the final, local check.</li>
+  <li><strong>Run the model privately.</strong> Use the model inside the company's own cloud account (Claude is offered through Amazon Bedrock and Google Cloud Vertex AI, for example), under contract terms that rule out training on the company's data. Check the specific terms; don't assume them.</li>
+  <li><strong>Log what was sent.</strong> Keep a record of every prompt, so the company can show an auditor exactly what left the building.</li>
+</ul>
+<p>Note that the answer key, the comparison and the holdout never need to leave the company at all. Only the translation step talks to the AI.</p>
+</section>
+
+<section id="qa">
+<h2><span class="num">10</span>Judge questions</h2>
+<p>Short answers you can say out loud. Questions marked <span class="tough">tough</span> are the ones where an honest "here's the limit" is the strong answer. Don't bluff. "We haven't measured that yet, here's how we would" beats a guess every time.</p>
+<div class="qa-tools">
+  <button type="button" id="qa-open">Open all</button>
+  <button type="button" id="qa-close">Close all</button>
+</div>
+
+<p class="qa-group">The idea</p>
+
+<details class="qa"><summary><span class="n">Q1</span><span>What does it do, in one sentence?</span></summary><div class="a">
+<p>It uses AI to translate old SQL Server jobs into PySpark, then proves each translation by running old and new on the same data and checking that every output row matches.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q2</span><span>Why not just use sqlglot or another translator?</span></summary><div class="a">
+<p>We tried. On 141 statements from Microsoft's procedures, sqlglot reported 141 out of 141 successes with strict errors on, and its output still had T-SQL that Spark rejects. Translators swap syntax; these jobs need restructuring, because Spark has no UPDATE or DELETE on DataFrames. And even a perfect translator wouldn't tell you the numbers match. Our check would work on sqlglot's output too. The checking is the point.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q3</span><span>Why not just have engineers review the AI's code?</span></summary><div class="a">
+<p>Reviewers read code; the dangerous bugs are differences in behaviour that look fine on the page, like <code>7 / 2</code> giving 3 in SQL Server and 3.5 in Spark. Checking the actual output catches those. We still want engineers to review, and the comparison tells them exactly where to look.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q4</span><span>What's actually new here? People already compare outputs.</span></summary><div class="a">
+<p>They do, usually by hand at the end, on samples. We make it automatic and complete: the answer key is captured from the real legacy job inside a transaction that's then undone, every row and column is compared, the AI is kept away from the answers, and a holdout dataset guards against overfitting. It turns reconciliation from a project phase into a step that runs for every job, every time the translation changes.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q5</span><span>Why does "the AI never grades its own work" matter? AI can write tests too.</span></summary><div class="a">
+<p>If the AI writes the code and the tests, both come from the same understanding. If it misread the job, the tests share the mistake and pass. Our referee is the legacy system's real output, which the AI never sees, and the comparison code is written by hand.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q6</span><span>Why did you pick Challenge 03?</span></summary><div class="a">
+<p>Because success is measurable: either the outputs match row for row or they don't. And it's core work for EXL's insurance and data clients.</p>
+</div></details>
+
+<p class="qa-group">Trust and proof</p>
+
+<details class="qa"><summary><span class="n">Q7</span><span>How do you know the AI didn't cheat?</span></summary><div class="a">
+<p>It never sees the answer. The prompt is the old SQL code plus each table's column names and types, no data at all; the code that builds it is in <code>translate.py</code> and you can read it. Claude runs from an empty folder with no project files around it. The verdict comes from a hand-written comparison against the real legacy output. Once the retry loop is in, it will see mismatches from the dev data, which is exactly why the holdout data exists: it never sees anything from that.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q8</span><span>Couldn't it just copy the input to the output and pass?</span></summary><div class="a">
+<p>No. The legacy job really changes the tables, so the input and the answer key differ, and our first comparison (before vs after) shows a FAIL for exactly that reason. A do-nothing translation gives back the input, so it fails too. We keep a do-nothing job, <code>noop.py</code>, as a control.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q9</span><span>Does a pass prove the translation is correct? <span class="tough">tough</span></span></summary><div class="a">
+<p>No, and we say so. It proves old and new gave identical output on the data we tested. Proving two programs agree on every possible input is undecidable in general; no tool can do it for real stored procedures. So we test on more than one dataset, including a holdout the AI never saw, and we recommend a parallel run on production data before a legacy job is switched off.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q10</span><span>It passes on test data. What about production? <span class="tough">tough</span></span></summary><div class="a">
+<p>Test data can miss a case that production has. Example: if no test sale has a missing customer, a translation that forgot the "use 0 when not found" rule still passes. The answer is a parallel run: run old and new side by side on real data each night for a few weeks, and compare with this same tool. That's standard in insurance migrations already. We make it cheap.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q11</span><span>What if the old job isn't deterministic? <span class="tough">tough</span></span></summary><div class="a">
+<p>It often isn't fully, and the Sale job is a good example. It writes the current time, so that column can never match. New rows get auto-numbered keys from SQL Server, which the translation can't predict. And the lookup uses <code>TOP(1) ... ORDER BY [Valid From]</code>: if two versions of a customer had the same <code>Valid From</code>, SQL Server could pick either. The first two go on a short, named ignore list per job. For ties, the translation picks a fixed rule (lowest key), and the right way to find any remaining instability is to run the legacy job twice on the same input and compare it with itself. Anything that differs there is noise, not a translation bug. That self-check is a plan, not built yet.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q12</span><span>Isn't an ignore list a way to hide bugs?</span></summary><div class="a">
+<p>It would be if it were long or hidden. It's per job, short, every column on it has a written reason, and every ignored column is named in the result. Every other column is still compared, and every row still has to find its exact twin, so a missing or extra row is still caught. For the staging table the list is empty. The checker we're finishing goes further: an ignored column must still be filled in on exactly the same rows as in the legacy output, and rows the job didn't touch are compared in every column.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q13</span><span>Why compare whole rows instead of matching rows by ID?</span></summary><div class="a">
+<p>Because IDs can lie: they might not be unique, or they might be one of the columns that can't match, like an auto-numbered key. Comparing whole rows as a bag, counting duplicates, needs no ID and has no blind spot. We do use an ID afterwards, only to explain a failure: "row 3107, this column, this value vs that value".</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q14</span><span>What if the legacy job has a bug?</span></summary><div class="a">
+<p>We copy it. The rule is to reproduce legacy behaviour, quirks included. If you fix things during a migration, the outputs stop matching, and you lose the one thing that proves the migration didn't break anything. Fixes are a separate change afterwards, with their own sign-off. A tiny real example: Microsoft's Movement job uses a column spelled <code>[Last Modifed When]</code>, with a typo. The translation must keep that exact name.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q15</span><span>What happens when the AI can't get it right?</span></summary><div class="a">
+<p>Today: you get a FAIL with the exact tables, rows and cells that differ, and an engineer takes it from there. Next: the retry loop sends those dev-data mismatches back to the AI for a few attempts. If it still fails, it stays failed and goes to a person. A job is never marked as passed because the AI tried hard. And a clear fail is useful too: across hundreds of jobs, it tells you exactly which ones need an engineer.</p>
+</div></details>
+
+<p class="qa-group">The jobs and the data</p>
+
+<details class="qa"><summary><span class="n">Q16</span><span>How many jobs have you migrated? <span class="tough">tough</span></span></summary><div class="a">
+<p>Answer with the current numbers from <a href="#status">What's been built so far</a>. As of 4 November: one job, Microsoft's Sale job, translated by Claude and run in Spark. On <code>main</code>, its staging table is compared and matches exactly, 5,224 rows by 26 columns. Our test-bench branch reports that all 8 tables the job touches now pass; once that's merged and re-run, say "all 8 tables". City and Movement are next. Don't round this up.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q17</span><span>Why Microsoft's sample data and not insurance data?</span></summary><div class="a">
+<p>Two reasons. It's real ETL code that nobody on our team wrote, so we can't have shaped it to suit the tool. And it has the hard patterns that real warehouses have: history tables, key lookups, delete-and-reinsert, MERGE. We're adding insurance-style jobs written separately for the same reason. Real insurer data would need the privacy measures in our Responsible AI note.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q18</span><span>Can it handle MERGE, temp tables, cursors, dynamic SQL?</span></summary><div class="a">
+<p>MERGE is why we picked the Movement job; that's in progress. For temp tables and cursors, translation gets harder but checking doesn't change at all, because we only compare the tables the job leaves behind. Dynamic SQL, where the job builds SQL as text while it runs, is genuinely hard: you can't see the final code until it runs. We haven't tested those, and we'd flag them for a person.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q19</span><span>The challenge says SQL and SAS. What about SAS?</span></summary><div class="a">
+<p>Not yet. We've done T-SQL only. The method carries over directly: run the SAS job on a snapshot, save its output as the answer key, translate, compare. What's needed is a SAS environment to run the legacy side, which we don't have. We'd rather do one language properly than claim two.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q20</span><span>What about SSIS packages, or jobs that call other systems?</span></summary><div class="a">
+<p>SSIS packages are graphical workflows saved as XML, not SQL, and they're out of scope. In Microsoft's setup SSIS only does the extract step, which we replaced with a SQL script for testing. Jobs that send emails, write files or call other systems have effects outside the database, and our harness only snapshots tables, so it wouldn't see them. You'd need to capture those outputs too. That's a stated limit.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q21</span><span>The procedure has its own COMMIT. How does your rollback undo it?</span></summary><div class="a">
+<p>In SQL Server, a <code>COMMIT</code> inside an outer transaction doesn't really commit; it just closes the inner level. Nothing is permanent until the outermost transaction commits. We open the outer transaction and roll it back, so everything the job did is undone.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q22</span><span>You load staging outside the transaction. Isn't that a problem?</span></summary><div class="a">
+<p>SQL Server won't let one transaction touch a memory-only table and a second database, and loading staging reads the shop database. So the load happens first, then the transaction. The only lasting effect is one extra row in the logbook table per run, which is harmless. Both sides still start from the same "before" photo, taken after the load.</p>
+</div></details>
+
+<p class="qa-group">Scale, cost and platform</p>
+
+<details class="qa"><summary><span class="n">Q23</span><span>Does it scale to 500 jobs? <span class="tough">tough</span></span></summary><div class="a">
+<p>The method does; our setup isn't there yet. Per job, someone has to say which tables it touches, how its staging gets filled, and which columns to ignore. Today that's typed into <code>run_legacy.py</code> by hand. At 500 jobs you'd generate most of it: SQL Server can list which tables a procedure references. Jobs are independent, so they run in parallel. The real bottleneck becomes the jobs that fail, and the tool tells you exactly which those are.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q24</span><span>Does it scale to billions of rows? <span class="tough">tough</span></span></summary><div class="a">
+<p>The Spark side does; that's what Spark is for. The comparison doesn't yet: it loads both tables into Python memory, which is fine for hundreds of thousands of rows (Fact.Sale has 228,265) but not billions. At that size you'd run the same check inside Spark itself; Spark has a built-in "multiset difference" (<code>exceptAll</code>) that does the same job. Not built.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q25</span><span>Is Spark actually running on a cluster?</span></summary><div class="a">
+<p>No, in local mode on a laptop, using all its cores. That's normal for development, and the same PySpark code runs unchanged on a cluster. Spark is actually slower than SQL Server on 5,000 rows, because of start-up time. The point is that Spark is where these jobs are going.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q26</span><span>What does it cost?</span></summary><div class="a">
+<p>We haven't measured it yet. Each translation attempt is one AI call. The prompt is the job's code plus its table layouts, a few thousand words, and the answer is a page or two of code. Retries multiply that by a small number. Running SQL Server and Spark for testing is free on a laptop. In a real migration the expensive part is people's time checking results, and that's what this automates. <span class="chip confirm">To confirm</span> a real cost per job before the finale if you can.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q27</span><span>Why Spark rather than Snowflake or dbt?</span></summary><div class="a">
+<p>The challenge asks for PySpark. But the method isn't tied to Spark. Only two pieces are Spark-specific: the translation target and the script that runs it. The answer key, the comparison and the holdout stay exactly the same. Swap the runner, and you could check translations to Snowflake SQL or dbt models the same way.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q28</span><span>How long does a run take?</span></summary><div class="a">
+<p><span class="chip confirm">To confirm</span> Get the real numbers from the repo owner before the finale. <code>run_spark.py</code> prints "job + write" and total time at the end of every run, and the test-bench branch also saves the procedure's time in <code>meta.json</code> and Spark's in <code>run.json</code>. Have one number for each step, and say which machine it was on.</p>
+</div></details>
+
+<p class="qa-group">Responsibility and the team</p>
+
+<details class="qa"><summary><span class="n">Q29</span><span>Is it safe to send a company's code or data to an AI?</span></summary><div class="a">
+<p>Today we send code and table layouts only, no data rows. That's still sensitive for a company. Once the retry loop sends mismatches, real values go too. A real insurer should send as little as possible, mask personal columns, use synthetic data for the AI's practice runs, and run the model inside its own cloud account under terms that rule out training on its data. The answer key and the comparison never need to leave the company.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q30</span><span>Who's accountable if a migrated job is wrong?</span></summary><div class="a">
+<p>The people who sign it off, as now. The tool doesn't approve or deploy anything. It produces the evidence a person needs to make that call: input, old output, new output, and exactly where they differ.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q31</span><span>Which parts did you build, and which did AI build? <span class="tough">tough</span></span></summary><div class="a">
+<p>The PySpark translations are AI-written; that's the product. The comparison, <code>diff.py</code>, is written by hand on purpose, and so will the retry loop be, so the part that judges the AI isn't written by AI. We used AI assistants for some other parts of the work, including drafting documentation like this guide, and we're open about it.</p>
+<p>If <code>check.py</code> from the test-bench branch is merged, it was written with AI help, and it decides what the hand-written comparison is given. Either the repo owner reviews and owns it line by line, or the answer has to say so.</p>
+<p><span class="chip confirm">To confirm</span> Ask the repo owner exactly who wrote <code>run_legacy.py</code>, <code>run_spark.py</code> and <code>translate.py</code>, and fill it in here. Get this exactly right; it's an easy question to be caught out on.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q32</span><span>What was the hardest part?</span></summary><div class="a">
+<p>Getting a trustworthy answer key. SQL Server kept crashing on the Apple-chip Mac until we switched Docker's emulator. Microsoft's staging tables are memory-only and empty on every restart. SQL Server won't let one transaction span a memory-only table and a second database. The year-9999 "still valid" dates break pandas. Each of those had to be solved before a single comparison could be trusted. They're all written up in the devlog.</p>
+</div></details>
+
+<details class="qa"><summary><span class="n">Q33</span><span>What would you do with another month?</span></summary><div class="a">
+<p>Finish the retry loop and holdout, run all 13 of Microsoft's procedures and the insurance-style jobs, move the comparison into Spark so it scales, generate each job's table list automatically, add the legacy-vs-itself check to find unstable columns, and start on SAS.</p>
+</div></details>
+</section>
+
+<section id="glossary">
+<h2><span class="num">11</span>Glossary</h2>
+<dl class="gloss">
+  <div><dt>Action (Spark)</dt><dd>A step that makes Spark actually do the work, like <code>count()</code>, <code>collect()</code> or writing a file. See lazy evaluation.</dd></div>
+  <div><dt>Answer key</dt><dd>The legacy job's real output, saved in <code>snapshots/&lt;job&gt;/after/</code>. What the translation is checked against.</dd></div>
+  <div><dt>Business key</dt><dd>The live system's own ID for something, like <code>WWI Customer ID</code>. Doesn't change between versions.</dd></div>
+  <div><dt>Claude</dt><dd>Anthropic's large language model. Called through the <code>claude -p</code> command in <code>translate.py</code>.</dd></div>
+  <div><dt>Cluster</dt><dd>A group of machines working together. Spark spreads work across one.</dd></div>
+  <div><dt>Container</dt><dd>A sealed box that runs a program with its own mini operating system. We run SQL Server in one, using Docker.</dd></div>
+  <div><dt>DataFrame</dt><dd>Spark's table: named, typed columns, spread across machines, never changed in place.</dd></div>
+  <div><dt>Data lake</dt><dd>Files (usually Parquet) in cheap cloud storage that engines like Spark read directly.</dd></div>
+  <div><dt>Data warehouse</dt><dd>A separate database laid out for reporting, which keeps history. WideWorldImportersDW.</dd></div>
+  <div><dt>Denormalise</dt><dd>Copy data from many tables into one wide row, so reports don't have to join.</dd></div>
+  <div><dt>Dev dataset</dt><dd>Test data the AI is allowed to get feedback from.</dd></div>
+  <div><dt>Dimension table</dt><dd>A "who, where, what" table in a star schema, like <code>Dimension.Customer</code>.</dd></div>
+  <div><dt>Docker</dt><dd>Software that runs containers. Configured in <code>docker-compose.yml</code>.</dd></div>
+  <div><dt>Driver / executor</dt><dd>In Spark, the driver plans the work and the executors do it.</dd></div>
+  <div><dt>ETL</dt><dd>Extract, transform, load: the nightly jobs that move data from the live system to the warehouse.</dd></div>
+  <div><dt>Fact table</dt><dd>The centre of a star schema: one row per event, with the numbers. <code>Fact.Sale</code>.</dd></div>
+  <div><dt>Holdout dataset</dt><dd>Test data the AI never gets anything from. Only the final check runs on it.</dd></div>
+  <div><dt>Identity column</dt><dd>A column SQL Server fills with the next number automatically, like <code>Sale Key</code>. Numbers aren't given back on rollback.</dd></div>
+  <div><dt>Ignore list</dt><dd>Per-job list of columns that can never match (clock times, identity keys), left out of the comparison.</dd></div>
+  <div><dt>Lazy evaluation</dt><dd>Spark records steps in a plan and only runs them when an action asks for a result.</dd></div>
+  <div><dt>Lineage (two meanings)</dt><dd>1) <code>Integration.Lineage</code>: WideWorldImporters' logbook of loads, one row per load. 2) Our planned feature showing which input columns feed each output column. Don't mix them up.</dd></div>
+  <div><dt>LLM</dt><dd>Large language model. An AI that reads and writes text, including code.</dd></div>
+  <div><dt>MERGE</dt><dd>A SQL statement that updates matching rows and inserts new ones in one go. Used by the Movement job.</dd></div>
+  <div><dt>Multiset</dt><dd>A collection where order doesn't matter but the number of copies does. How <code>diff.py</code> compares tables.</dd></div>
+  <div><dt>NULL</dt><dd>SQL's "no value". Python reads it as <code>None</code>.</dd></div>
+  <div><dt>ODBC / pyodbc</dt><dd>The standard way programs talk to databases, and the Python library that uses it. How <code>run_legacy.py</code> talks to SQL Server.</dd></div>
+  <div><dt>OLTP / OLAP</dt><dd>Live system (lots of small writes) vs warehouse (big read-only questions). The café till vs the accountant's spreadsheet.</dd></div>
+  <div><dt>Parallel run</dt><dd>Running old and new systems side by side on real data for a while, comparing outputs, before switching off the old one.</dd></div>
+  <div><dt>Parquet</dt><dd>A typed, compressed, column-by-column file format for tables. What our snapshots use.</dd></div>
+  <div><dt>Partition</dt><dd>One chunk of a DataFrame, handled by one executor.</dd></div>
+  <div><dt>Prompt</dt><dd>The text sent to the AI. Ours is the rules, the table layouts and the legacy SQL.</dd></div>
+  <div><dt>pyarrow</dt><dd>Python library for typed tables and Parquet files. Keeps decimals exact and handles year-9999 dates.</dd></div>
+  <div><dt>PySpark</dt><dd>The Python way to use Spark.</dd></div>
+  <div><dt>Reconciliation</dt><dd>Showing that two systems' outputs agree. <code>reconcile()</code> in <code>diff.py</code>.</dd></div>
+  <div><dt>Rollback</dt><dd>Undo every change in a transaction.</dd></div>
+  <div><dt>Schema (two meanings)</dt><dd>1) A named folder of tables inside a database, like <code>Fact</code> or <code>Dimension</code>. 2) A table's layout: column names and types.</dd></div>
+  <div><dt>Slowly changing dimension (SCD)</dt><dd>A dimension that keeps old versions. Type 2 adds a new row per change, with <code>Valid From</code> / <code>Valid To</code>.</dd></div>
+  <div><dt>Snapshot</dt><dd>A saved copy of tables at one moment. We keep three: before, after, spark.</dd></div>
+  <div><dt>Spark</dt><dd>Apache Spark: free software that processes big data across many machines.</dd></div>
+  <div><dt>sqlglot</dt><dd>An open-source Python tool that translates SQL between dialects. Reported 141/141 successes on output Spark rejects.</dd></div>
+  <div><dt>SSIS</dt><dd>SQL Server Integration Services: Microsoft's Windows-only graphical ETL tool. Fills staging in Microsoft's setup; we replaced that step with a script.</dd></div>
+  <div><dt>Staging table</dt><dd>A waiting area where raw data lands before a job processes it. <code>Integration.Sale_Staging</code>.</dd></div>
+  <div><dt>Star schema</dt><dd>Warehouse layout: a fact table in the middle, dimension tables around it.</dd></div>
+  <div><dt>Stored procedure</dt><dd>A named program saved inside the database. Our legacy jobs are these.</dd></div>
+  <div><dt>Surrogate key</dt><dd>The warehouse's own made-up number for one version of something, like <code>Customer Key</code>.</dd></div>
+  <div><dt>T-SQL</dt><dd>Microsoft's dialect of SQL, used by SQL Server.</dd></div>
+  <div><dt>Transaction</dt><dd>A group of changes that all happen or none do. Started with <code>BEGIN TRAN</code>.</dd></div>
+  <div><dt>Undecidable</dt><dd>Proven impossible for any program to answer correctly in every case. Whether two SQL queries always agree is one.</dd></div>
+  <div><dt>Unknown member (key 0)</dt><dd>The key the Sale job uses when it finds no matching dimension row.</dd></div>
+  <div><dt>WideWorldImporters</dt><dd>Microsoft's free sample company: a shop database and a warehouse database, with real ETL code.</dd></div>
+</dl>
+</section>
+
+<section id="demo">
+<h2><span class="num">12</span>When something breaks during the demo</h2>
+<p>First rule: have a recording. Record a full clean run (all four commands and the PASS) before the finale. If anything goes wrong live, switch to it and keep talking. Nobody marks you down for that.</p>
+<p>Second rule: a FAIL isn't a broken demo. If <code>diff.py</code> says FAIL, say so: "That's the checker doing its job. Here's the exact row and column." Then show the report.</p>
+<div class="table-wrap">
+<table>
+  <tr><th>You see</th><th>Likely cause</th><th>Fix</th></tr>
+  <tr><td>SQL Server container stopped; <code>docker inspect sql2022 --format '{{.State.ExitCode}}'</code> shows 139</td><td>Crashed under Docker's default emulator</td><td>Turn on Docker's Rosetta setting, then <code>docker start sql2022</code></td></tr>
+  <tr><td>Clicking the Docker app does nothing</td><td>It's already running in the menu bar</td><td>Use the whale icon in the menu bar</td></tr>
+  <tr><td>Can't connect to SQL Server</td><td>Container not running, or password not loaded</td><td><code>docker compose up -d</code>, wait 30 seconds; check <code>.env</code> is in the repo folder</td></tr>
+  <tr><td><code>OpenSSL library could not be loaded</code></td><td>Homebrew points <code>openssl</code> at version 4</td><td><code>ln -sfn /opt/homebrew/opt/openssl@3 /opt/homebrew/opt/openssl</code></td></tr>
+  <tr><td>Staging table is empty</td><td>It's memory-only; a restart wiped it</td><td>Nothing: <code>run_legacy.py</code> reloads it every run</td></tr>
+  <tr><td>Logbook row count goes up by 1 each run</td><td>Staging load is outside the undo</td><td>Expected, harmless</td></tr>
+  <tr><td><code>No Parquet files in snapshots/sale/before/</code></td><td>The answer-key step hasn't run on this machine</td><td><code>python migrator/run_legacy.py sale</code> first</td></tr>
+  <tr><td>Spark won't start, Java errors</td><td><code>JAVA_HOME</code> or <code>SPARK_LOCAL_IP</code> not set</td><td>They're read from <code>.env</code>; check they're in it. Ask the repo owner for the right values</td></tr>
+  <tr><td><code>FAILED while writing ...</code> from <code>run_spark.py</code></td><td>Spark is lazy; an error in the translation only shows when it writes</td><td>Read the error. It's a translation problem, not a setup problem</td></tr>
+  <tr><td><code>Expected exactly one ```python block</code></td><td>Claude's answer wasn't in the expected shape</td><td>Run <code>translate.py</code> again, or demo with the saved <code>jobs_pyspark/sale.py</code></td></tr>
+  <tr><td><code>claude failed (exit code ...)</code></td><td>Not logged in, or no network</td><td>Use the saved translation. Translating live isn't needed to show the check</td></tr>
+  <tr><td>Commands break when pasted</td><td>Pasting several lines split one</td><td>Paste one line at a time</td></tr>
+</table>
+</div>
+<p>Before you go on stage: run all four steps once on the demo laptop, close other apps (SQL Server is set to use 2 GB of memory, and Docker has about 4 GB), and turn off notifications.</p>
+</section>
+
+<section id="about">
+<h2><span class="num">13</span>How this guide was made</h2>
+<p>This guide was written by an AI assistant (Claude, through Claude Code) in a documentation-only session on 4 November 2026, and should be checked by the team before anyone relies on it. No code was changed.</p>
+<p>It's based on:</p>
+<ul>
+  <li><code>DEVLOG (2).md</code> and <code>SETUP (1).md</code>, treated as the source of truth for decisions and setup.</li>
+  <li>The code on <code>main</code> at commit <code>03d4247</code>: <code>migrator/run_legacy.py</code>, <code>translate.py</code>, <code>run_spark.py</code>, <code>diff.py</code>; <code>jobs_pyspark/sale.py</code> and <code>noop.py</code>; <code>scripts/load_sale_staging.sql</code>; the three procedures in <code>legacy_jobs/wwi/</code>; <code>AGENTS.md</code>.</li>
+  <li>The two sample outputs in the comparison section, which came from running the real <code>reconcile()</code> on a handful of made-up rows.</li>
+  <li>The sibling branches' reports, where they existed (see <a href="#status">What's been built so far</a>).</li>
+</ul>
+<p>It is <strong>not</strong> based on the hackathon PDF or the project brief, which aren't in the repo, or on the snapshot data, which is never committed. That's why the example values in the walkthrough are made up, and why the EXL section asks you to check the challenge wording.</p>
+<h3>What to keep updated</h3>
+<ul>
+  <li><strong><a href="#status">What's been built so far</a></strong>, every time something lands. The 3-minute pitch (beat 4) and Q16 depend on it.</li>
+  <li><strong>Everything marked <span class="chip confirm">To confirm</span></strong>: who wrote which script (Q31), timings (Q28), cost (Q26), the sqlglot probe evidence.</li>
+  <li><strong>The comparison section</strong> once the ignore lists exist, and once <code>Fact.Sale</code> has been compared: put the real result in.</li>
+  <li><strong>Responsible AI, data privacy</strong> once the retry loop exists: describe exactly what it sends.</li>
+</ul>
+</section>
+
+<footer class="end">
+  <p>LegacyMigrator, EXL Data &amp; AI Hackathon, Challenge 03. Microsoft's WideWorldImporters procedures are used under the MIT licence.</p>
+</footer>
 
 </main>
 </div>
@@ -1187,7 +1566,10 @@ first 1 changes:
       var h = s.querySelector("h2"); if (!h) return;
       var title = h.cloneNode(true); var n = title.querySelector(".num"); if (n) n.remove();
       var li = document.createElement("li"); var a = document.createElement("a");
-      a.href = "#" + s.id; a.textContent = title.textContent.trim(); a.dataset.target = s.id;
+      a.href = "#" + s.id; a.dataset.target = s.id;
+      var num = document.createElement("span"); num.className = "n"; num.textContent = n ? n.textContent : "";
+      var txt = document.createElement("span"); txt.textContent = title.textContent.trim();
+      a.appendChild(num); a.appendChild(txt);
       li.appendChild(a); ol.appendChild(li);
     });
     if (container.id === "toc-rail") container.appendChild(label);
