@@ -1,0 +1,6 @@
+{
+  "extends": "sale",
+  "holdout": true,
+  "staging_params": {"window_from": "2015-06-20 00:00:00", "window_to": "2015-07-20 00:00:00"},
+  "why_this_window": "Chosen with scripts/holdout_stats.sql. 623 of its 6,143 sale lines come within 14 days after a city version change (the 2015-07-01 state and country changes); the dev window has 0. Its end is not the current ETL cutoff, so a translation that forgets to update Integration.[ETL Cutoff] fails here, while on dev the cutoff gets set to the value it already had. The AI never sees this window: it is not translated, and its results are never fed back."
+}

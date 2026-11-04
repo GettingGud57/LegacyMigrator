@@ -1,0 +1,70 @@
+{
+  "job": "sale_holdout",
+  "proc": "Integration.MigrateStagedSaleData",
+  "probed_at": "2026-11-04 21:28:31",
+  "method": "staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table",
+  "tables": {
+    "Fact.Sale": {
+      "rows": 228265,
+      "unstable_columns": [
+        "Sale Key"
+      ],
+      "runs_agree_on_everything_else": true
+    },
+    "Integration.Lineage": {
+      "rows": 30,
+      "unstable_columns": [
+        "Data Load Completed"
+      ],
+      "runs_agree_on_everything_else": true
+    },
+    "Integration.Sale_Staging": {
+      "rows": 6143,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    },
+    "Integration.ETL Cutoff": {
+      "rows": 14,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    },
+    "Dimension.City": {
+      "rows": 116295,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    },
+    "Dimension.Customer": {
+      "rows": 403,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    },
+    "Dimension.Employee": {
+      "rows": 213,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    },
+    "Dimension.Stock Item": {
+      "rows": 672,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    }
+  },
+  "unstable": {
+    "Fact.Sale": {
+      "Sale Key": {
+        "reason": "identity column: SQL Server gives new rows the next number, and a rollback doesn't hand numbers back, so two runs on the same input get different values",
+        "rows_that_differ": 6143,
+        "example_run_1": "265753",
+        "example_run_2": "271896"
+      }
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": {
+        "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs",
+        "rows_that_differ": 1,
+        "example_run_1": "2026-11-04 21:28:12.537673",
+        "example_run_2": "2026-11-04 21:28:23.255722"
+      }
+    }
+  }
+}
