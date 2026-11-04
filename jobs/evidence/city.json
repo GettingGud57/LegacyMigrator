@@ -1,0 +1,50 @@
+{
+  "job": "city",
+  "proc": "Integration.MigrateStagedCityData",
+  "probed_at": "2026-11-04 21:21:14",
+  "method": "staged once, ran the legacy job twice in separate rolled-back transactions, compared every column of every table",
+  "tables": {
+    "Dimension.City": {
+      "rows": 125923,
+      "unstable_columns": [
+        "City Key"
+      ],
+      "runs_agree_on_everything_else": true
+    },
+    "Integration.Lineage": {
+      "rows": 26,
+      "unstable_columns": [
+        "Data Load Completed"
+      ],
+      "runs_agree_on_everything_else": true
+    },
+    "Integration.ETL Cutoff": {
+      "rows": 14,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    },
+    "Integration.City_Staging": {
+      "rows": 9628,
+      "unstable_columns": [],
+      "runs_agree_on_everything_else": true
+    }
+  },
+  "unstable": {
+    "Dimension.City": {
+      "City Key": {
+        "reason": "differs between two runs of the legacy job on the same input",
+        "rows_that_differ": 9628,
+        "example_run_1": "125923",
+        "example_run_2": "135551"
+      }
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": {
+        "reason": "date-time that differs between two runs on the same input: a clock value such as SYSDATETIME(), set when the job runs",
+        "rows_that_differ": 1,
+        "example_run_1": "2026-11-04 21:21:07.444750",
+        "example_run_2": "2026-11-04 21:21:11.699342"
+      }
+    }
+  }
+}
