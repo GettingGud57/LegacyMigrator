@@ -127,8 +127,10 @@ def main():
     cur.execute("BEGIN TRAN")
     try:
         before = snapshot(cur, job["tables"], out / "before")
+        proc_started = time.perf_counter()
         cur.execute(f"SET NOCOUNT ON; DECLARE @r int; EXEC @r = {job['proc']}; SELECT @r")
         return_code = cur.fetchone()[0]
+        proc_seconds = time.perf_counter() - proc_started
         after = snapshot(cur, job["tables"], out / "after")
     finally:
         cur.execute("IF @@TRANCOUNT > 0 ROLLBACK")
@@ -138,13 +140,14 @@ def main():
         "job": job_name,
         "proc": job["proc"],
         "return_code": return_code,
+        "proc_seconds": round(proc_seconds, 3),
         "rows_before": before,
         "rows_after": after,
         "taken_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
     (out / "meta.json").write_text(json.dumps(meta, indent=2))
 
-    print(f"\n   return code: {return_code}\n")
+    print(f"\n   return code: {return_code}   procedure took {proc_seconds:.2f}s\n")
     print(f"   {'table':28} {'before':>8} {'after':>8}")
     for table in before:
         print(f"   {table:28} {before[table]:>8} {after[table]:>8}")

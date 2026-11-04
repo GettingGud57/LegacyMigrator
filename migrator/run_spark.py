@@ -13,8 +13,12 @@ The PySpark job is a Python file that defines:
 
 Usage (from the repo root):
     python migrator/run_spark.py sale path/to/job.py
+    python migrator/run_spark.py sale path/to/job.py some/other/out_dir   (default: snapshots/<job>/spark)
+
+Timings and row counts go to <out_dir>/run.json.
 """
 import importlib.util
+import json
 import shutil
 import sys
 import tempfile
@@ -84,11 +88,11 @@ def fail(stage, job_path):
 
 
 def main():
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python migrator/run_spark.py <job> path/to/job.py")
+    if len(sys.argv) not in (3, 4):
+        sys.exit("Usage: python migrator/run_spark.py <job> path/to/job.py [out_dir]")
     job_name, job_path = sys.argv[1], Path(sys.argv[2])
     before_dir = Path("snapshots") / job_name / "before"
-    out_dir = Path("snapshots") / job_name / "spark"
+    out_dir = Path(sys.argv[3]) if len(sys.argv) == 4 else Path("snapshots") / job_name / "spark"
     files = sorted(before_dir.glob("*.parquet"))
     if not files:
         sys.exit(f"No Parquet files in {before_dir}/. Run: python migrator/run_legacy.py {job_name}")
@@ -126,11 +130,20 @@ def main():
     job_seconds = time.perf_counter() - job_started
 
     spark.stop()
+    total_seconds = time.perf_counter() - started
+    (out_dir / "run.json").write_text(json.dumps({
+        "job": job_name,
+        "spark_job": str(job_path),
+        "job_and_write_seconds": round(job_seconds, 3),
+        "total_seconds_including_spark_startup": round(total_seconds, 3),
+        "rows": spark_counts,
+        "changed_tables": sorted(changed),
+    }, indent=2))
     print(f"\n   {'table':28} {'before':>8} {'spark':>8}  changed")
     for name in before_counts:
         mark = "yes" if name in changed else ""
         print(f"   {name:28} {before_counts[name]:>8} {spark_counts[name]:>8}  {mark}")
-    print(f"\n   job + write: {job_seconds:.1f}s, total: {time.perf_counter() - started:.1f}s")
+    print(f"\n   job + write: {job_seconds:.1f}s, total: {total_seconds:.1f}s")
     print(f"   saved to {out_dir}/")
 
 
