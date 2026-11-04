@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Attempt, Job, ResultsFile, TableResult } from '../types';
 import {
-  OUTCOME_LABEL, attemptHeadline, attemptOutcome, errorLine, holdoutState, jobView, num, seconds, tableVerdict,
+  OUTCOME_LABEL, attemptHeadline, attemptOutcome, errorLine, holdoutState, jobView, num, plural, seconds, tableVerdict,
   verdictSentence,
 } from '../model';
 import { TABS, go, href, type Route, type Tab } from '../router';
@@ -266,7 +266,7 @@ function EvidenceTable({ t }: { t: TableResult }) {
         <code className="tname">{t.table}</code>
         <span className="muted">
           old {t.rows_legacy != null ? num(t.rows_legacy) : '?'} rows · new {t.rows_spark != null ? num(t.rows_spark) : '?'} rows
-          {t.rows_changed_by_legacy != null && ` · ${num(t.rows_changed_by_legacy)} rows changed by the old job`}
+          {t.rows_changed_by_legacy != null && ` · ${plural(t.rows_changed_by_legacy, 'row')} changed by the old job`}
         </span>
       </header>
       {r ? (
