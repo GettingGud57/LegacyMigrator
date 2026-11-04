@@ -780,6 +780,376 @@ big = sales.filter(
 <p>Why check it? Because an LLM writes the most likely-looking code, and likely-looking isn't the same as correct. It can miss a rule that the old system applies silently (like whole-number division), break a tie differently, or handle an empty value differently. It does this confidently. It has no way to know it's wrong unless something outside it says so. In our setup, that something is the legacy job's real output.</p>
 </section>
 
+<section id="pipeline">
+<h2><span class="num">04</span>How the project works</h2>
+<p>Four Python scripts in <code>migrator/</code>, run one after another. They don't call each other. They pass files along, through the <code>snapshots/</code> folder. That makes every step easy to check on its own: you can open any file and see exactly what one step handed to the next.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 1010 560" role="img" aria-labelledby="f6t">
+  <title id="f6t">Pipeline: run_legacy.py runs the old job on SQL Server and saves before and after snapshots. translate.py sends the legacy SQL and table layouts to Claude and saves jobs_pyspark/sale.py. run_spark.py runs that file on the before snapshot and saves a spark snapshot. diff.py compares after with spark and gives PASS or FAIL. A planned loop feeds failures back to translate.</title>
+  <!-- legacy lane -->
+  <text x="20" y="22" font-size="12" class="t-legacy t-mono" font-weight="600">OLD SIDE</text>
+  <rect class="box-legacy" x="20" y="36" width="190" height="84" rx="8"/>
+  <text x="34" y="60" font-weight="700" font-size="14">SQL Server</text>
+  <text x="34" y="79" font-size="12" class="t-muted">in Docker, on the Mac</text>
+  <text x="34" y="100" font-size="11" class="t-mono">MigrateStagedSaleData</text>
+  <path class="ln-legacy" d="M210,78 L246,78" marker-start="url(#ah-legacy)" marker-end="url(#ah-legacy)"/>
+  <rect class="box" x="250" y="48" width="170" height="60" rx="8"/>
+  <text x="335" y="74" text-anchor="middle" font-weight="700" font-size="14" class="t-mono">run_legacy.py</text>
+  <text x="335" y="94" text-anchor="middle" font-size="11" class="t-muted">photo, run, photo, undo</text>
+  <path class="ln" d="M420,70 L478,70" marker-end="url(#ah)"/>
+  <path class="ln" d="M400,108 L478,200" marker-end="url(#ah)"/>
+  <rect class="box-legacy" x="482" y="36" width="180" height="76" rx="8"/>
+  <text x="496" y="60" font-weight="700" font-size="14" class="t-mono">after/</text>
+  <text x="496" y="80" font-size="12">the answer key</text>
+  <text x="496" y="98" font-size="11" class="t-muted">what the old job produced</text>
+  <rect class="box-panel" x="482" y="176" width="180" height="76" rx="8"/>
+  <text x="496" y="200" font-weight="700" font-size="14" class="t-mono">before/</text>
+  <text x="496" y="220" font-size="12">the input</text>
+  <text x="496" y="238" font-size="11" class="t-muted">tables before the job ran</text>
+
+  <!-- AI lane -->
+  <text x="20" y="300" font-size="12" class="t-spark t-mono" font-weight="600">NEW SIDE</text>
+  <rect class="box" x="20" y="314" width="190" height="70" rx="8"/>
+  <text x="34" y="338" font-weight="700" font-size="13" class="t-mono">legacy_jobs/wwi/</text>
+  <text x="34" y="358" font-size="11" class="t-mono">MigrateStagedSaleData.sql</text>
+  <text x="34" y="374" font-size="11" class="t-muted">the old code</text>
+  <path class="ln" d="M210,349 L246,349" marker-end="url(#ah)"/>
+  <rect class="box" x="250" y="319" width="170" height="60" rx="8"/>
+  <text x="335" y="345" text-anchor="middle" font-weight="700" font-size="14" class="t-mono">translate.py</text>
+  <text x="335" y="365" text-anchor="middle" font-size="11" class="t-muted">builds the prompt</text>
+  <path class="ln-dash" d="M482,236 L420,330" marker-end="url(#ah)"/>
+  <text x="428" y="270" font-size="11" class="t-muted">column names</text>
+  <text x="428" y="284" font-size="11" class="t-muted">+ types only</text>
+  <path class="ln" d="M320,379 L320,436" marker-end="url(#ah)"/>
+  <path class="ln" d="M350,436 L350,383" marker-end="url(#ah)"/>
+  <text x="300" y="414" font-size="11" class="t-muted" text-anchor="end">prompt</text>
+  <text x="358" y="414" font-size="11" class="t-muted">code</text>
+  <rect class="box-accent" x="250" y="440" width="170" height="90" rx="8"/>
+  <text x="335" y="464" text-anchor="middle" font-weight="700" font-size="14">Claude</text>
+  <text x="335" y="483" text-anchor="middle" font-size="11">sees: SQL code, table layouts</text>
+  <text x="335" y="500" text-anchor="middle" font-size="11" class="t-fail" font-weight="600">never sees: any data,</text>
+  <text x="335" y="516" text-anchor="middle" font-size="11" class="t-fail" font-weight="600">after/, or spark/</text>
+  <path class="ln" d="M420,349 L478,349" marker-end="url(#ah)"/>
+  <rect class="box-spark" x="482" y="314" width="180" height="70" rx="8"/>
+  <text x="496" y="338" font-weight="700" font-size="13" class="t-mono">jobs_pyspark/</text>
+  <text x="496" y="358" font-size="12" class="t-mono">sale.py</text>
+  <text x="496" y="374" font-size="11" class="t-muted">the AI's translation</text>
+
+  <rect class="box" x="700" y="246" width="150" height="60" rx="8"/>
+  <text x="775" y="272" text-anchor="middle" font-weight="700" font-size="14" class="t-mono">run_spark.py</text>
+  <text x="775" y="292" text-anchor="middle" font-size="11" class="t-muted">runs sale.py</text>
+  <path class="ln" d="M662,226 L698,262" marker-end="url(#ah)"/>
+  <path class="ln" d="M662,340 L698,292" marker-end="url(#ah)"/>
+  <path class="ln" d="M775,306 L775,340" marker-end="url(#ah)"/>
+  <rect class="box-spark" x="700" y="344" width="150" height="70" rx="8"/>
+  <text x="714" y="368" font-weight="700" font-size="14" class="t-mono">spark/</text>
+  <text x="714" y="388" font-size="12">Spark's output</text>
+  <text x="714" y="404" font-size="11" class="t-muted">same file names</text>
+
+  <!-- compare -->
+  <rect class="box" x="880" y="150" width="114" height="60" rx="8"/>
+  <text x="937" y="176" text-anchor="middle" font-weight="700" font-size="14" class="t-mono">diff.py</text>
+  <text x="937" y="196" text-anchor="middle" font-size="11" class="t-muted">hand-written</text>
+  <path class="ln-legacy" d="M662,66 L900,66 L920,146" marker-end="url(#ah-legacy)"/>
+  <path class="ln-spark" d="M850,379 L955,379 L955,214" marker-end="url(#ah-spark)"/>
+  <rect class="box-pass" x="880" y="232" width="114" height="64" rx="8"/>
+  <text x="937" y="258" text-anchor="middle" font-weight="800" font-size="14" class="t-pass">PASS</text>
+  <text x="937" y="278" text-anchor="middle" font-size="11" class="t-muted">or FAIL + report</text>
+  <path class="ln" d="M937,210 L937,228" marker-end="url(#ah)"/>
+
+  <!-- planned -->
+  <rect class="box-planned" x="700" y="460" width="294" height="76" rx="8"/>
+  <text x="714" y="482" font-weight="700" font-size="13" class="t-mono">loop.py <tspan class="t-muted" font-family="Archivo, sans-serif" font-weight="600">(planned)</tspan></text>
+  <text x="714" y="501" font-size="11" class="t-muted">sends FAIL details (dev data only)</text>
+  <text x="714" y="517" font-size="11" class="t-muted">back to translate, retries a few times</text>
+  <path class="ln-dash" d="M980,296 L980,456" marker-end="url(#ah)"/>
+  <path class="ln-dash" d="M700,498 L424,498" marker-end="url(#ah)"/>
+</svg>
+</div>
+<figcaption>Plum is the old side, orange the new side. They only meet in <code>diff.py</code>. The dashed parts are planned, not built.</figcaption>
+</figure>
+
+<h3>The four steps, with the real commands</h3>
+<p>All run from the repo folder. The job name, <code>sale</code>, is how the scripts find the right folder.</p>
+<ol class="steps">
+<li><div>
+<p><strong>Make the answer key.</strong> <span class="chip built">Built</span></p>
+<pre>python migrator/run_legacy.py sale</pre>
+<p>Loads staging (by running <code>scripts/load_sale_staging.sql</code>), opens a transaction, saves every table the job touches to <code>snapshots/sale/before/</code>, runs the stored procedure, saves the same tables to <code>snapshots/sale/after/</code>, and rolls back. Also writes <code>snapshots/sale/meta.json</code> with the return code and row counts. The list of tables for each job is written into the script (the <code>JOBS</code> dictionary). Right now it only has <code>sale</code>.</p>
+<p>The Sale job touches 8 tables: <code>Integration.Sale_Staging</code>, <code>Integration.Lineage</code>, <code>Integration.[ETL Cutoff]</code>, <code>Dimension.City</code>, <code>Dimension.Customer</code>, <code>Dimension.[Stock Item]</code>, <code>Dimension.Employee</code> and <code>Fact.Sale</code>. Every row of every one of them is saved, both times.</p>
+</div></li>
+<li><div>
+<p><strong>Translate.</strong> <span class="chip built">Built</span></p>
+<pre>python migrator/translate.py sale legacy_jobs/wwi/MigrateStagedSaleData.sql</pre>
+<p>Reads only the <em>layout</em> of each file in <code>before/</code> (its column names and types, not its rows), adds the rules and the legacy SQL, and sends it all to Claude using <code>claude -p</code> (the Claude command-line tool in "print" mode: one question in, one answer out). It runs Claude from inside an empty temporary folder, so there are no project files lying around for it to look at. It checks the answer has exactly one Python code block and saves it to <code>jobs_pyspark/sale.py</code>.</p>
+</div></li>
+<li><div>
+<p><strong>Run the translation in Spark.</strong> <span class="chip built">Built</span></p>
+<pre>python migrator/run_spark.py sale jobs_pyspark/sale.py</pre>
+<p>Starts Spark on the laptop, loads every file in <code>before/</code> as a DataFrame, and calls the translation's <code>run(spark, tables)</code> function. It checks the result is a dictionary of known table names to DataFrames, then writes every table to <code>snapshots/sale/spark/</code>: the ones the job returned, plus unchanged copies of the rest. Same file names as <code>after/</code>, so they line up one to one. It prints row counts and how long the job took.</p>
+</div></li>
+<li><div>
+<p><strong>Compare.</strong> <span class="chip built">Built</span> for <code>Sale_Staging</code>; other tables <span class="chip wip">In progress</span></p>
+<pre>python migrator/diff.py</pre>
+<p>Right now this runs three fixed comparisons on <code>Integration.Sale_Staging</code>: before vs after (shows what the old job changed), before vs spark, and the one that matters, after vs spark (legacy vs translation). Each prints PASS or FAIL and, on a FAIL, which rows and cells differ. Comparing the other three changed tables, and wiring it up for any job, is the next step.</p>
+</div></li>
+</ol>
+
+<h3>The files</h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Path</th><th>What's in it</th><th>Made by</th></tr>
+  <tr><td class="mono">legacy_jobs/wwi/*.sql</td><td>The code being migrated. Microsoft's Sale, City and Movement procedures (MIT licence, kept in <code>LICENSE-microsoft.txt</code>).</td><td>Microsoft</td></tr>
+  <tr><td class="mono">scripts/load_sale_staging.sql</td><td>Test setup: fills the staging table with a month of sales from the shop and opens a logbook entry. Never migrated.</td><td>Us</td></tr>
+  <tr><td class="mono">snapshots/sale/before/</td><td>8 Parquet files, one per table: the input. Both sides start from this.</td><td><code>run_legacy.py</code></td></tr>
+  <tr><td class="mono">snapshots/sale/after/</td><td>The same 8 tables after the real job ran: the answer key.</td><td><code>run_legacy.py</code></td></tr>
+  <tr><td class="mono">snapshots/sale/meta.json</td><td>Return code, row counts, time taken.</td><td><code>run_legacy.py</code></td></tr>
+  <tr><td class="mono">jobs_pyspark/sale.py</td><td>Claude's PySpark translation, 160 lines.</td><td><code>translate.py</code> + Claude</td></tr>
+  <tr><td class="mono">jobs_pyspark/noop.py</td><td>A test job that changes nothing. Used to check the Spark round trip doesn't alter data by itself.</td><td>Us</td></tr>
+  <tr><td class="mono">snapshots/sale/spark/</td><td>The same 8 tables, as produced by the translation.</td><td><code>run_spark.py</code></td></tr>
+</table>
+</div>
+<p><code>snapshots/</code> is never committed to git (it's in <code>.gitignore</code>), because it holds data. Neither is <code>.env</code>, which holds the database password.</p>
+<p><strong>Why save "before" at all?</strong> Because both sides must start from the identical input. If the old job ran on Monday's data and the new one on Tuesday's, a mismatch could mean a wrong translation or just different data. With one shared before/ there's only one explanation.</p>
+
+<h3>The contract every translation follows</h3>
+<p>Every translated job is a Python file with one function:</p>
+<pre><span class="k">def</span> run(spark, tables):
+    <span class="c"># tables = {"Fact.Sale": DataFrame, "Dimension.City": DataFrame, ...}</span>
+    <span class="c">#          exactly as they were before the job ran</span>
+    ...
+    <span class="k">return</span> {<span class="sp">"Fact.Sale"</span>: new_fact_sale, ...}   <span class="c"># only the tables the job changed,</span>
+                                               <span class="c"># each one complete, same columns</span></pre>
+<p>That's the whole interface. The translation doesn't read files, connect to databases or print. It gets tables, returns tables. That's what lets us run it on any data we like, including data it's never been tested on.</p>
+</section>
+
+<section id="one-sale">
+<h2><span class="num">05</span>One sale line, start to finish</h2>
+<p>Let's follow one line of one invoice through the whole system. The column names and code are real. The values are made up for illustration, since the snapshots aren't in the repo.</p>
+
+<ol class="steps">
+<li><div>
+<h4 style="margin-top:4px">In the shop</h4>
+<p>Customer 832 buys 24 bags of "Chocolate frogs 250g" at 4.10 each on invoice 68412. In the shop database this is spread across several tables: the invoice, the invoice line, the customer, the stock item.</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">Onto the tray</h4>
+<p><code>load_sale_staging.sql</code> calls the shop's <code>Integration.GetSaleUpdates</code>, which flattens those tables into one row per invoice line, and puts each row in <code>Integration.Sale_Staging</code>. In the real run this staged 5,224 lines from 1,604 invoices. Our line looks like this:</p>
+<div class="table-wrap">
+<table>
+  <tr><th class="mono">column</th><th>value</th></tr>
+  <tr><td class="mono">Sale Staging Key</td><td class="mono">3107</td></tr>
+  <tr><td class="mono">WWI Invoice ID</td><td class="mono">68412</td></tr>
+  <tr><td class="mono">Description</td><td>Chocolate frogs 250g</td></tr>
+  <tr><td class="mono">Quantity / Unit Price / Tax Rate</td><td class="mono">24 / 4.10 / 15.000</td></tr>
+  <tr><td class="mono">Total Including Tax</td><td class="mono">113.16</td></tr>
+  <tr><td class="mono">WWI Customer ID / WWI Bill To Customer ID</td><td class="mono">832 / 1</td></tr>
+  <tr><td class="mono">WWI City ID / WWI Stock Item ID / WWI Salesperson ID</td><td class="mono">242 / 222 / 7</td></tr>
+  <tr><td class="mono">Last Modified When</td><td class="mono">2016-05-20 11:00:00</td></tr>
+  <tr><td class="mono">City Key, Customer Key, Bill To Customer Key, Stock Item Key, Salesperson Key</td><td class="empty">all empty (NULL)</td></tr>
+</table>
+</div>
+<p>The script also writes a "Sale load started" row into the logbook, <code>Integration.Lineage</code>. In the first run it got Lineage Key 14. The job looks for that open row.</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">The before photo</h4>
+<p><code>run_legacy.py</code> opens the transaction and saves all 8 tables to <code>before/</code>. Our line is saved with its five key columns empty.</p>
+<p>A small thing with a real effect: every row in <code>before/</code> has those five columns empty, so pyarrow can't tell what type they are. It stores them with type <code>null</code>. That's why the prompt has a rule saying "a column listed with type <code>null</code> is empty in the input; work out its real type from the SQL".</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">The old job runs <span class="chip legacy">legacy</span></h4>
+<p>For each of the five keys, it finds the dimension row for the right thing, valid at the sale's time. For the customer:</p>
+<pre><span class="k">SET</span> s.[Customer Key] = <span class="k">COALESCE</span>((<span class="k">SELECT</span> <span class="lg">TOP(1)</span> c.[Customer Key]
+                                   <span class="k">FROM</span> Dimension.Customer <span class="k">AS</span> c
+                                   <span class="k">WHERE</span> c.[WWI Customer ID] = s.[WWI Customer ID]
+                                   <span class="k">AND</span> s.[Last Modified When] &gt; c.[Valid From]
+                                   <span class="k">AND</span> s.[Last Modified When] &lt;= c.[Valid To]
+                                   <span class="k">ORDER BY</span> c.[Valid From]), 0)</pre>
+<p>In words: "among customer 832's versions, take the one whose date range contains 2016-05-20 11:00. If there's none, use 0." That's version 433 from the <a href="#b-scd">history example</a>. Same for city, bill-to customer, stock item and salesperson.</p>
+<p>Then it deletes every <code>Fact.Sale</code> row for invoice 68412 (in case the invoice was loaded before and has changed), inserts our line as a fresh row with <code>Lineage Key</code> 14, marks lineage row 14 as finished with the current time, and moves the "loaded up to" time in <code>Integration.[ETL Cutoff]</code>.</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">The after photo, and undo</h4>
+<p>All 8 tables are saved to <code>after/</code>. Our staging line now has <code>Customer Key</code> 433 and the other four keys filled in. Then the rollback puts the database back exactly as it was.</p>
+<p>The row counts are identical before and after (the devlog confirms this for all 8 tables), because the job deletes and reinserts the same invoices. Counting rows would say "nothing changed". Comparing contents shows what really did.</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">The AI writes the same thing in PySpark <span class="chip spark">new</span></h4>
+<p>From <code>jobs_pyspark/sale.py</code>, which Claude wrote:</p>
+<pre>cond = (
+    (F.col(<span class="sp">"__d_id"</span>) == F.col(stg_id_col))                  <span class="c"># same customer</span>
+    &amp; (F.col(<span class="sp">"Last Modified When"</span>) &gt; F.col(<span class="sp">"__d_from"</span>))     <span class="c"># after Valid From</span>
+    &amp; (F.col(<span class="sp">"Last Modified When"</span>) &lt;= F.col(<span class="sp">"__d_to"</span>))      <span class="c"># up to Valid To</span>
+)
+joined = df.join(d, cond, <span class="sp">"left"</span>)                         <span class="c"># keep rows with no match</span>
+<span class="c"># ...then keep only the first match per staging row, ordered by Valid From (that's TOP(1))</span>
+<span class="c"># ...and F.coalesce(key, 0) when nothing matched</span></pre>
+<p>Spark has no "UPDATE this column using a sub-query", so the AI rebuilt it: join each staging row to every matching customer version, number the matches in <code>Valid From</code> order, keep match number 1, and fill 0 when there's none. The delete becomes a <code>left_anti</code> join ("keep fact rows whose invoice is <em>not</em> in staging"), and the insert becomes a union of the kept rows with the new ones.</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">Spark runs it</h4>
+<p><code>run_spark.py</code> feeds it the same <code>before/</code> files and writes <code>spark/</code>. Our staging line comes out with its five keys filled in by Spark's version of the logic.</p>
+</div></li>
+<li><div>
+<h4 style="margin-top:4px">The comparison <span class="chip built">Built</span></h4>
+<p><code>diff.py</code> compares <code>after/Integration.Sale_Staging.parquet</code> with <code>spark/Integration.Sale_Staging.parquet</code>. Result on the real data: <strong>PASS. All 5,224 rows, all 26 columns, identical.</strong> Our line's five keys came out the same on both sides, and so did every other line's.</p>
+<p><code>Fact.Sale</code>, <code>Integration.Lineage</code> and <code>Integration.[ETL Cutoff]</code> haven't been compared yet <span class="chip wip">In progress</span>. We already know two columns there can never match, explained next.</p>
+</div></li>
+</ol>
+</section>
+
+<section id="compare">
+<h2><span class="num">06</span>How the comparison works, and why it's trustworthy</h2>
+<p>This is the heart of the project. If the comparison is weak, nothing else matters. <code>migrator/diff.py</code> is written by hand on purpose, and the project rules say no AI writes it.</p>
+
+<h3>The rule: compare whole rows, count duplicates</h3>
+<p>The function that decides is <code>reconcile(rows_a, rows_b, key_cols, ignore_cols)</code>. A is the legacy output, B the translation's. It works like this:</p>
+<ol>
+  <li>Pick the columns to compare: every column both tables have, minus any on the ignore list.</li>
+  <li>Turn each row into a tuple of those values, in the same column order on both sides.</li>
+  <li>Count how many times each exact tuple appears on each side, using Python's <code>Counter</code>.</li>
+  <li>Anything that appears more times on one side than the other is a mismatch.</li>
+</ol>
+<p><strong>PASS only if there are no mismatched rows on either side, and no column exists on one side only.</strong> Anything else is FAIL.</p>
+<p>In maths terms this compares the two tables as <strong>multisets</strong>: bags of rows where order doesn't matter but how many copies matters. Two details that make it strict in the right way:</p>
+<ul>
+  <li><strong>Order doesn't matter.</strong> Spark doesn't keep rows in any fixed order, and neither does SQL Server without an <code>ORDER BY</code>. Same rows in a different order is a pass.</li>
+  <li><strong>Copies do matter.</strong> Imagine two lines on one invoice with the same item, quantity and price. Once the auto-numbered <code>Sale Key</code> is ignored, they're identical rows. If the translation dropped one, a simple "is every row present?" check would still pass. Counting copies catches it.</li>
+</ul>
+<p>Here's that exact case, run through the real <code>diff.py</code> with made-up rows:</p>
+<pre>FAIL
+  identical-twin check: 1 rows in A and 0 in B have no identical twin (2 columns compared)
+whole rows only in A (1):
+  (24, 68412)</pre>
+<p>Values compare the way Python compares them. Two empty values (NULL, which Python sees as <code>None</code>) count as equal, which is what you want: both sides left it empty, so they agree. Decimals are compared as exact decimals, never as floats.</p>
+
+<h3>Key columns: only for explaining a FAIL</h3>
+<p>A FAIL that just says "17 rows differ" isn't much help. So if you give <code>reconcile</code> key columns (for staging, <code>Sale Staging Key</code>), it also pairs rows up by that key and reports, cell by cell, what changed. Real output from <code>diff.py</code> on made-up rows, where the translation forgot to fill the bill-to key with 0:</p>
+<pre>FAIL
+  identical-twin check: 1 rows in A and 1 in B have no identical twin (5 columns compared)
+  details, pairing rows by key:
+rows only in A: 0   rows only in B: 0   rows changed: 1   cells changed: 1
+first 1 changes:
+  (3107,)  Bill To Customer Key  0 -&gt; None</pre>
+<p>Read it as: "the row with Sale Staging Key 3107 exists on both sides, and one cell differs: Bill To Customer Key is 0 in legacy and empty in Spark."</p>
+<p>The key never decides PASS or FAIL. Why keep it out of the decision? Because keys can lie. A key might not be unique (two rows share it), or it might be one of the columns that can never match. If the verdict depended on pairing by key, a bad key could hide a problem. The whole-row count has no such weak spot. If keys do repeat, the report warns about it and leaves those rows out of the cell-by-cell explanation rather than guessing.</p>
+
+<h3 id="never-match">Values that can never match</h3>
+<p>Some columns will differ between any two runs, even of the same job. Comparing them would always FAIL and tell you nothing. They go on an ignore list for that job. The devlog names three kinds:</p>
+<div class="table-wrap">
+<table>
+  <tr><th>Kind</th><th>Example in the Sale job</th><th>Why it can't match</th></tr>
+  <tr><td>Clock times</td><td class="mono">Integration.Lineage<br>[Data Load Completed]</td><td>The job writes <code>SYSDATETIME()</code>, the time right now. Spark writes its own "now", which is a different moment.</td></tr>
+  <tr><td>Identity keys</td><td class="mono">Fact.Sale<br>[Sale Key]</td><td>SQL Server numbers new rows itself. Numbers used inside a rolled-back transaction aren't handed back, so every run of <code>run_legacy.py</code> pushes the counter on by about 5,224, and the order rows get numbered in isn't guaranteed either. The translation can't know the server's counter.</td></tr>
+  <tr><td>Lineage keys</td><td class="mono">Integration.Lineage<br>(new rows per run)</td><td>Each staging load opens a new logbook row, and it isn't rolled back. Inside one run both sides read the same before/, so this one is fine within a run; it matters when comparing across runs.</td></tr>
+</table>
+</div>
+<p>Ignoring a column is a decision a human makes and writes down, per job. It's a short list, and every ignored column is named. The rest of the row is still compared in full, and the row count is still checked, because every row still has to find its twin. For <code>Sale_Staging</code> the ignore list is empty: all 26 columns were compared.</p>
+<p class="small">The per-job ignore lists are <span class="chip planned">Planned</span>. <code>reconcile</code> already takes an <code>ignore_cols</code> argument.</p>
+
+<h3>Checks on the checker</h3>
+<p>How do you know the comparison isn't just saying PASS to everything? Two built-in controls:</p>
+<ul>
+  <li><strong>before vs after</strong> must FAIL, because the old job really changed the staging table (it filled in five key columns). If this passed, the checker would be broken. It's the first comparison <code>diff.py</code> prints.</li>
+  <li><strong>The no-op job.</strong> <code>jobs_pyspark/noop.py</code> changes nothing. Run it through <code>run_spark.py</code> and its output must equal <code>before/</code> exactly. When it does, that shows the Spark round trip itself (reading Parquet, writing Parquet, timestamps, decimals) doesn't alter data. So when a real translation fails, the fault is in the translation, not the plumbing.</li>
+</ul>
+<p>A third control is <span class="chip wip">In progress</span> on the test-bench branch: <strong>planted bugs</strong>. Take a correct translation, break it on purpose in a small way (wrong rounding, a dropped NULL check), and make sure the comparison catches each one.</p>
+
+<h3>Dev data and holdout data</h3>
+<p>Once the retry loop exists, the AI will see the FAIL reports and try again. That creates a risk: it could learn to pass <em>our</em> data rather than learn the job. For example by special-casing one invoice that kept failing.</p>
+<p>The fix is the same one used in machine learning and in exams: keep some questions back.</p>
+<ul>
+  <li>The <strong>dev dataset</strong> is what the loop runs on. The AI gets the mismatches and can fix against them.</li>
+  <li>The <strong>holdout dataset</strong> is different data (for example, a different time window, with different customers and edge cases) that the AI never gets any feedback from. Not the data, not the mismatches, not even whether it passed. Only the final check runs on it, and the result goes to people.</li>
+</ul>
+<p>A translation that really understood the job passes both. One that was tuned to the dev data tends to fail the holdout. The project rules say it plainly: "The translator must never see holdout data or holdout diffs." <span class="chip wip">In progress</span> on the test-bench branch.</p>
+
+<figure class="fig wide">
+<div class="canvas">
+<svg viewBox="0 0 760 230" role="img" aria-labelledby="f7t">
+  <title id="f7t">Dev data results can go back to the AI through the loop. Holdout results only go to people.</title>
+  <rect class="box-panel" x="20" y="30" width="170" height="64" rx="8"/>
+  <text x="105" y="58" text-anchor="middle" font-weight="700" font-size="14">Dev data</text>
+  <text x="105" y="78" text-anchor="middle" font-size="11" class="t-muted">the AI may learn from it</text>
+  <rect class="box-panel" x="20" y="140" width="170" height="64" rx="8"/>
+  <text x="105" y="168" text-anchor="middle" font-weight="700" font-size="14">Holdout data</text>
+  <text x="105" y="188" text-anchor="middle" font-size="11" class="t-muted">the AI never sees it</text>
+  <path class="ln" d="M190,62 L290,62" marker-end="url(#ah)"/>
+  <path class="ln" d="M190,172 L290,172" marker-end="url(#ah)"/>
+  <rect class="box" x="294" y="30" width="150" height="64" rx="8"/>
+  <text x="369" y="58" text-anchor="middle" font-weight="700" font-size="13">compare</text>
+  <text x="369" y="78" text-anchor="middle" font-size="11" class="t-muted">PASS / FAIL + details</text>
+  <rect class="box" x="294" y="140" width="150" height="64" rx="8"/>
+  <text x="369" y="168" text-anchor="middle" font-weight="700" font-size="13">compare</text>
+  <text x="369" y="188" text-anchor="middle" font-size="11" class="t-muted">PASS / FAIL + details</text>
+  <path class="ln-dash" d="M444,62 L560,62" marker-end="url(#ah)"/>
+  <rect class="box-accent" x="564" y="30" width="176" height="64" rx="8"/>
+  <text x="652" y="58" text-anchor="middle" font-weight="700" font-size="13">back to the AI</text>
+  <text x="652" y="78" text-anchor="middle" font-size="11" class="t-muted">retry loop (planned)</text>
+  <path class="ln" d="M444,172 L560,172" marker-end="url(#ah)"/>
+  <rect class="box-pass" x="564" y="140" width="176" height="64" rx="8"/>
+  <text x="652" y="168" text-anchor="middle" font-weight="700" font-size="13">to people only</text>
+  <text x="652" y="188" text-anchor="middle" font-size="11" class="t-muted">final verdict</text>
+  <line class="ln-fail" x1="20" y1="117" x2="740" y2="117"/>
+  <text x="740" y="111" text-anchor="end" font-size="11" class="t-fail" font-weight="600">nothing below this line reaches the AI</text>
+</svg>
+</div>
+</figure>
+
+<h3>"The AI never grades its own work"</h3>
+<p>This is the one-line summary of everything above, and you should be able to back it up with three facts:</p>
+<ol>
+  <li><strong>The answer key comes from the old system</strong>, not from the AI. It's the real output of the real legacy job, saved before the AI is involved.</li>
+  <li><strong>The AI never sees the answer key.</strong> Its prompt has the old code and the table layouts, and nothing else. You can show this: it's all in <code>build_prompt</code> in <code>migrator/translate.py</code>.</li>
+  <li><strong>The judge is hand-written.</strong> <code>diff.py</code> isn't AI-written, by project rule. So the AI can't write a translation and a lenient test that agree with each other.</li>
+</ol>
+<p>Why does this matter? If you ask an AI to write code and then also write the tests for it, both come from the same understanding. If it misunderstood the job, the tests will share the misunderstanding and pass. Using the legacy system as the referee breaks that circle.</p>
+
+<h3>What a pass does and doesn't prove</h3>
+<p>Be precise here. It's where a sharp judge will push, and it's where being honest makes you look stronger.</p>
+<p><strong>A pass proves:</strong> on this input data, the translation produced exactly the same tables as the legacy job, every row and every compared column.</p>
+<p><strong>A pass doesn't prove:</strong> that the two programs agree on <em>every possible</em> input. A concrete example: the Sale job fills a key with 0 when no matching dimension row exists. If none of our test sales happens to have a missing match, a translation that forgot that rule would still pass. It would only fail on the day such a sale arrives.</p>
+<p>Could you prove it properly instead? In general, no. Computer scientists showed long ago that no program can decide, for every pair of SQL queries, whether they always give the same result. The problem is <strong>undecidable</strong>. There are tools that can prove it for limited kinds of queries, but not for real stored procedures with variables, updates and ordering.</p>
+<p>So the honest position, and it's in our Responsible AI note:</p>
+<div class="say">
+  <span class="who">Say this</span>
+  <p>A pass means the old and new job agreed on every dataset we tested, including one the AI never saw. That's strong evidence, not a mathematical proof. Before a real company switches off a legacy job, they should run old and new side by side on real production data for a while, and our tool is exactly what you'd use to compare them each night.</p>
+</div>
+<p>That side-by-side period is called a <strong>parallel run</strong>. It's standard practice in banking and insurance migrations already. Our tool makes it cheap and automatic.</p>
+<p>The ways to make "on this data" cover more cases are: more datasets, a holdout the AI hasn't seen, and data picked to include edge cases (NULLs, ties, missing matches, history changes). The test bench work is aimed at exactly that.</p>
+</section>
+
+<section id="status">
+<h2><span class="num">07</span>What's been built so far</h2>
+<p class="small">As of 4 November 2026. <code>main</code> at commit <code>03d4247</code>. Update this section as work lands.</p>
+
+<h3>On <code>main</code></h3>
+<div class="table-wrap">
+<table>
+  <tr><th>Piece</th><th>State</th><th>Notes</th></tr>
+  <tr><td>SQL Server + both Microsoft databases in Docker on the Mac</td><td><span class="chip built">Built</span></td><td>Set up 31 Oct. Steps in <code>SETUP (1).md</code>.</td></tr>
+  <tr><td><code>run_legacy.py</code> (answer key)</td><td><span class="chip built">Built</span></td><td>Sale job only. Return code 0, row counts identical before and after for all 8 tables.</td></tr>
+  <tr><td><code>translate.py</code></td><td><span class="chip built">Built</span></td><td>Produced <code>jobs_pyspark/sale.py</code>.</td></tr>
+  <tr><td><code>run_spark.py</code></td><td><span class="chip built">Built</span></td><td>Local Spark on the Mac.</td></tr>
+  <tr><td><code>diff.py</code> (<code>reconcile</code>)</td><td><span class="chip built">Built</span></td><td>Hand-written. Whole-row multiset check plus key-based explanation.</td></tr>
+  <tr><td>Sale job, <code>Integration.Sale_Staging</code></td><td><span class="chip built">PASS</span></td><td>5,224 rows x 26 columns identical to the legacy output.</td></tr>
+  <tr><td>Sale job, <code>Fact.Sale</code>, <code>Integration.Lineage</code>, <code>Integration.[ETL Cutoff]</code></td><td><span class="chip wip">In progress</span></td><td>Not compared yet. Need an ignore list (<code>Sale Key</code>, <code>Data Load Completed</code>).</td></tr>
+  <tr><td>City and Movement jobs</td><td><span class="chip wip">In progress</span></td><td>SQL is in <code>legacy_jobs/wwi/</code>. Not in <code>run_legacy.py</code>'s job list yet.</td></tr>
+  <tr><td><code>loop.py</code> (retry with feedback)</td><td><span class="chip planned">Planned</span></td><td>Hand-written by rule. Target 10 Nov.</td></tr>
+  <tr><td>Holdout dataset</td><td><span class="chip wip">In progress</span></td><td>Test-bench branch.</td></tr>
+  <tr><td>Your insurance-style jobs</td><td><span class="chip planned">Planned</span></td><td>No <code>legacy_jobs/insurance/</code> folder yet.</td></tr>
+  <tr><td>Review web app reading <code>results.json</code></td><td><span class="chip wip">In progress</span></td><td>Dashboard branch.</td></tr>
+  <tr><td>Lineage view (which input columns feed each output)</td><td><span class="chip planned">Planned</span></td><td>Not started.</td></tr>
+  <tr><td>SAS jobs</td><td><span class="chip planned">Not in scope yet</span></td><td>Only T-SQL so far.</td></tr>
+</table>
+</div>
+
+<h3>On other branches</h3>
+<!-- SIBLINGS -->
+</section>
+
 <!-- NEXT -->
 
 </main>
