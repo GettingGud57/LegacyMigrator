@@ -1,0 +1,15 @@
+{
+  "default": "sample",
+  "files": [
+    {
+      "id": "sample",
+      "label": "Demo story",
+      "path": "sample.json"
+    },
+    {
+      "id": "real",
+      "label": "Real runs",
+      "path": "real.json"
+    }
+  ]
+}
