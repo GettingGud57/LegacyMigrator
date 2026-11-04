@@ -5,7 +5,7 @@ import { OUTCOME_LABEL, STATUS_LABEL } from './model';
 
 type IconName =
   | 'check' | 'cross' | 'retry' | 'dot' | 'circle' | 'warn' | 'lock' | 'eye' | 'crash'
-  | 'sun' | 'moon' | 'auto' | 'arrow' | 'back' | 'keyboard' | 'half';
+  | 'sun' | 'moon' | 'auto' | 'arrow' | 'back' | 'keyboard' | 'half' | 'grid' | 'book';
 
 const PATHS: Record<IconName, ReactNode> = {
   check: <path d="M5 12.5l4.2 4.2L19 7" />,
@@ -23,6 +23,8 @@ const PATHS: Record<IconName, ReactNode> = {
   auto: <><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none" /></>,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   back: <path d="M19 12H5M11 6l-6 6 6 6" />,
+  grid: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
+  book: <><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z" /><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z" /></>,
   keyboard: <><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></>,
 };
 
@@ -42,6 +44,15 @@ export function Icon({ name, size = 18, title }: { name: IconName; size?: number
 const STATUS_ICON: Record<ShownStatus, IconName> = {
   verified: 'check', failed: 'cross', retrying: 'retry', in_progress: 'half', not_started: 'circle', unconfirmed: 'warn',
 };
+
+/** Icon only, with the status as its accessible name (used where the word sits next to it, e.g. the sidebar). */
+export function StatusIcon({ status }: { status: ShownStatus }) {
+  return (
+    <span className={`status-icon tone-${status}`}>
+      <Icon name={STATUS_ICON[status]} size={14} title={STATUS_LABEL[status]} />
+    </span>
+  );
+}
 
 /** Status always carries an icon and a word, never colour alone. */
 export function StatusPill({ status, big = false }: { status: ShownStatus; big?: boolean }) {

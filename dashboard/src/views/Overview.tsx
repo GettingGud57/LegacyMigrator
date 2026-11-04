@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ResultsFile } from '../types';
 import {
-  attemptHeadline, attemptOutcome, headline, holdoutState, jobView, lastAttempt, num, plural, summarizeRun, totals,
+  attemptHeadline, attemptOutcome, headline, holdoutState, jobView, lastAttempt, num, summarizeRun, totals,
 } from '../model';
-import { go, href } from '../router';
+import { href } from '../router';
 import { HoldoutBadge, Icon, OutcomeMark, StatusPill } from '../ui';
 
 export function Overview({ data }: { data: ResultsFile }) {
@@ -32,31 +32,32 @@ export function Overview({ data }: { data: ResultsFile }) {
 
   return (
     <div className="page">
-      <section className="hero" aria-labelledby="headline">
-        <p className="eyebrow">Nightly SQL Server jobs moving to PySpark</p>
-        <h1 id="headline" className="headline">
-          <span className="headline-num">{h.verified} of {h.total}</span>{' '}
-          <span className="headline-text">jobs verified on data the AI never saw</span>
-        </h1>
-        <p className="hero-sub">
-          A job counts as verified only when its new PySpark code gives <strong>exactly</strong> the same rows as
-          the old job, on the data the AI worked with and on a holdout set it never saw. The AI writes the code;
-          it never decides whether the code is right.
-        </p>
-        <HeadlineBar data={data} />
-      </section>
+      <header className="page-head">
+        <div>
+          <h1>Overview</h1>
+          <p className="muted">Legacy SQL Server jobs being migrated to PySpark, each checked row for row against the old system's real output.</p>
+        </div>
+      </header>
 
-      <section className="kpis" aria-label="Totals">
-        <Kpi value={num(t.attempts)} label="translation attempts" />
-        <Kpi value={num(t.tablesChecked)} label="table checks in the latest attempts" />
-        <Kpi value={num(t.rowsCompared)} label="rows compared, row for row" />
-        <Kpi value={num(t.ignoredCols)} label={t.ignoredCols === 1 ? 'column ignored, with a reason' : 'columns ignored, each with a reason'} />
+      <section className="stats" aria-label="Totals">
+        <div className="stat stat-main">
+          <span className="stat-label">Verified on holdout data</span>
+          <span className="stat-value" id="headline">
+            <span className="headline-num">{h.verified}</span><span className="stat-of"> / {h.total} jobs</span>
+          </span>
+          <HeadlineBar data={data} />
+          <span className="stat-note">Matched every row on dev data and on data the AI never saw</span>
+        </div>
+        <Kpi value={num(t.attempts)} label="Attempts" />
+        <Kpi value={num(t.tablesChecked)} label="Table checks" />
+        <Kpi value={num(t.rowsCompared)} label="Rows compared" />
+        <Kpi value={num(t.ignoredCols)} label="Ignored columns" />
       </section>
 
       <section aria-labelledby="jobs-title">
         <div className="section-head">
-          <h2 id="jobs-title">Jobs</h2>
-          <p className="muted">{plural(data.jobs.length, 'legacy job')} · click one to see the proof</p>
+          <h2 id="jobs-title">Jobs <span className="count">{data.jobs.length}</span></h2>
+          <p className="muted small">Open a job to see each attempt and the rows that decided it · <kbd>j</kbd> <kbd>k</kbd> to move</p>
         </div>
         <div className="jobs" role="list">
           <div className="jobs-head" aria-hidden>
@@ -113,22 +114,15 @@ export function Overview({ data }: { data: ResultsFile }) {
         </p>
       </section>
 
-      <section className="explain-cta">
-        <div>
-          <h2>New to this?</h2>
-          <p>Four steps, no jargon: what the old job is, what the AI does, and how the check works.</p>
-        </div>
-        <button className="btn" onClick={() => go({ page: 'how' })}>How it works <Icon name="arrow" size={16} /></button>
-      </section>
     </div>
   );
 }
 
 function Kpi({ value, label }: { value: string; label: string }) {
   return (
-    <div className="kpi">
-      <span className="kpi-value">{value}</span>
-      <span className="kpi-label">{label}</span>
+    <div className="stat">
+      <span className="stat-label">{label}</span>
+      <span className="stat-value">{value}</span>
     </div>
   );
 }

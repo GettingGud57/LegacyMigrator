@@ -50,18 +50,16 @@ export function JobPage({ data, route }: { data: ResultsFile; route: JobRoute })
 
   return (
     <div className="page job-page">
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <a href="#/"><Icon name="back" size={15} /> All jobs</a>
-        <span className="muted">{index + 1} of {data.jobs.length}</span>
-      </nav>
-
       <header className="job-head">
         <div>
           <h1>{job.name}</h1>
           <p className="job-meta"><code>{job.proc}</code>{job.source_file && <span className="muted"> · {job.source_file}</span>}</p>
           {job.summary && <p className="job-summary">{job.summary}</p>}
         </div>
-        <StatusPill status={v.shown} big />
+        <div className="job-head-side">
+          <StatusPill status={v.shown} big />
+          <span className="muted small">Job {index + 1} of {data.jobs.length} · <kbd>[</kbd> <kbd>]</kbd></span>
+        </div>
       </header>
 
       {v.warning && (
@@ -113,7 +111,7 @@ function Timeline({ job, current, tab }: { job: Job; current: number; tab: Tab }
   return (
     <section className="timeline-wrap" aria-labelledby="tl-title">
       <div className="section-head">
-        <h2 id="tl-title">Attempts</h2>
+        <h2 id="tl-title">Attempts <span className="count">{job.attempts.length}{job.max_attempts ? ` / ${job.max_attempts}` : ''}</span></h2>
         <p className="muted hide-phone">Use ← → to step through</p>
       </div>
       <ol className="timeline">

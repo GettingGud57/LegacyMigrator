@@ -35,14 +35,15 @@ const STEPS = [
 export function HowItWorks({ data, probe }: { data: ResultsFile; probe: Probe | null }) {
   return (
     <div className="page how">
-      <section className="hero">
-        <p className="eyebrow">How it works</p>
-        <h1 className="headline"><span className="headline-text">The AI never grades its own work.</span></h1>
-        <p className="hero-sub">
-          It's easy to make an AI write code that looks right. The hard part is knowing it <em>is</em> right. So the
-          AI only translates. The old system's real output decides.
-        </p>
-      </section>
+      <header className="page-head how-head">
+        <div>
+          <h1>How it works</h1>
+          <p>
+            The AI never grades its own work. It only translates; the old system's real output decides whether the
+            translation is right.
+          </p>
+        </div>
+      </header>
 
       <ol className="steps">
         {STEPS.map((s, i) => (

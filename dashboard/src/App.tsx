@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Manifest, ResultsFile } from './types';
 import { go, href, useRoute } from './router';
-import { Icon } from './ui';
+import { Icon, StatusIcon } from './ui';
+import { jobView } from './model';
 import { Overview } from './views/Overview';
 import { JobPage } from './views/JobPage';
 import { HowItWorks, type Probe } from './views/HowItWorks';
@@ -111,60 +112,99 @@ export function App() {
     document.title = `${part} - LegacyMigrator`;
   }, [route, data]);
 
+  const job = route.page === 'job' && data ? data.jobs.find((j) => j.id === route.jobId) : undefined;
+  const files = loaded && 'manifest' in loaded ? loaded.manifest.files : [];
+  const fileId = loaded && 'fileId' in loaded ? loaded.fileId : '';
+
   return (
-    <div className="app">
+    <div className="shell">
       <a className="skip" href="#main">Skip to content</a>
-      <header className="topbar">
-        <div className="topbar-inner">
-          <a className="brand" href={href({ page: 'overview' })} aria-label="LegacyMigrator overview">
-            <Logo />
+      <aside className="sidebar" aria-label="Navigation">
+        <a className="brand" href={href({ page: 'overview' })} aria-label="LegacyMigrator overview">
+          <Logo />
+          <span className="brand-text">
             <span className="brand-name">LegacyMigrator</span>
             <span className="brand-sub">Migration control room</span>
+          </span>
+        </a>
+        <nav className="side-nav" aria-label="Main">
+          <a href={href({ page: 'overview' })} aria-current={route.page === 'overview' ? 'page' : undefined}>
+            <Icon name="grid" size={16} /> Overview
           </a>
-          <nav className="nav" aria-label="Main">
-            <a href={href({ page: 'overview' })} aria-current={route.page !== 'how' ? 'page' : undefined}>Jobs</a>
-            <a href={href({ page: 'how' })} aria-current={route.page === 'how' ? 'page' : undefined}>How it works</a>
-          </nav>
-          <div className="tools">
-            {loaded && 'manifest' in loaded && loaded.manifest.files.length > 1 && (
-              <label className="file-pick">
-                <span className="sr-only">Results file</span>
-                <select value={loaded.fileId} onChange={(e) => switchFile(e.target.value)}>
-                  {loaded.manifest.files.map((f) => (
-                    <option key={f.id} value={f.id}>{f.label}</option>
-                  ))}
-                </select>
-              </label>
-            )}
+          <a href={href({ page: 'how' })} aria-current={route.page === 'how' ? 'page' : undefined}>
+            <Icon name="book" size={16} /> How it works
+          </a>
+        </nav>
+        {data && (
+          <div className="side-section">
+            <p className="side-label">Jobs <span>{data.jobs.length}</span></p>
+            <ul className="side-jobs">
+              {data.jobs.map((j) => {
+                const v = jobView(j);
+                return (
+                  <li key={j.id}>
+                    <a
+                      href={href({ page: 'job', jobId: j.id, attempt: null, tab: 'results' })}
+                      aria-current={route.page === 'job' && route.jobId === j.id ? 'page' : undefined}
+                    >
+                      <StatusIcon status={v.shown} />
+                      <span className="sj-name">{j.name}</span>
+                      <span className="sj-meta">{j.attempts.length ? `${j.attempts.length} att.` : '-'}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        <div className="side-foot">
+          {files.length > 1 && (
+            <label className="field">
+              <span className="side-label">Results file</span>
+              <select id="results-file" value={fileId} onChange={(e) => switchFile(e.target.value)}>
+                {files.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
+            </label>
+          )}
+          <div className="side-tools">
             <button className="icon-btn" onClick={cycle} title={`Theme: ${theme} (t)`} aria-label={`Theme: ${theme}. Change theme`}>
-              <Icon name={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'auto'} />
+              <Icon name={theme === 'dark' ? 'moon' : theme === 'light' ? 'sun' : 'auto'} size={16} />
             </button>
-            <button className="icon-btn hide-phone" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
-              <Icon name="keyboard" />
+            <button className="icon-btn" onClick={() => setHelp(true)} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
+              <Icon name="keyboard" size={16} />
             </button>
           </div>
         </div>
-      </header>
+      </aside>
 
-      {data?.sample && <SampleBanner notes={data.notes ?? []} />}
+      <div className="content">
+        <header className="topbar">
+          <nav className="crumbs" aria-label="Breadcrumb">
+            <a href={href({ page: 'overview' })}>Jobs</a>
+            {route.page === 'how' && <><span className="sep">/</span><span>How it works</span></>}
+            {job && <><span className="sep">/</span><span>{job.name}</span></>}
+            {job && route.page === 'job' && route.attempt && <><span className="sep">/</span><span>Attempt {route.attempt}</span></>}
+          </nav>
+          <div className="topbar-meta">
+            {data && <span className="muted run-time">Run {new Date(data.generated_at).toISOString().slice(0, 16).replace('T', ' ')} UTC</span>}
+          </div>
+        </header>
 
-      <main id="main" className="main">
-        {!loaded && <p className="loading">Loading results…</p>}
-        {loaded && 'error' in loaded && <LoadError error={loaded.error} />}
-        {data && route.page === 'overview' && <Overview data={data} />}
-        {data && route.page === 'how' && <HowItWorks data={data} probe={loaded && 'probe' in loaded ? loaded.probe : null} />}
-        {data && route.page === 'job' && <JobPage data={data} route={route} />}
-      </main>
+        {data?.sample && <SampleBanner notes={data.notes ?? []} />}
 
-      <footer className="footer">
-        {data && (
-          <span>
-            {data.title ?? 'Results'} · written {new Date(data.generated_at).toUTCString().replace(' GMT', ' UTC')} ·
-            contract v{data.contract_version}
-          </span>
-        )}
-        <span>The AI translates. The old system's real output decides.</span>
-      </footer>
+        <main id="main" className="main">
+          {!loaded && <p className="loading">Loading results…</p>}
+          {loaded && 'error' in loaded && <LoadError error={loaded.error} />}
+          {data && route.page === 'overview' && <Overview data={data} />}
+          {data && route.page === 'how' && <HowItWorks data={data} probe={loaded && 'probe' in loaded ? loaded.probe : null} />}
+          {data && route.page === 'job' && <JobPage data={data} route={route} />}
+        </main>
+
+        <footer className="footer">
+          {data && <span>{data.title ?? 'Results'} · contract v{data.contract_version}</span>}
+          <span>The AI translates. The old system's real output decides.</span>
+        </footer>
+      </div>
 
       {help && <Shortcuts onClose={() => setHelp(false)} />}
     </div>
@@ -186,7 +226,7 @@ function SampleBanner({ notes }: { notes: string[] }) {
   return (
     <div className="sample-banner" role="note">
       <div className="sample-inner">
-        <strong><Icon name="warn" size={16} /> Sample data</strong>
+        <strong><Icon name="warn" size={14} /> Sample data</strong>
         <span>{notes[0] ?? 'Invented numbers for the demo. Not real results.'}</span>
         {notes.length > 1 && (
           <details>
