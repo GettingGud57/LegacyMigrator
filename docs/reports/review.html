@@ -1,0 +1,549 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LegacyMigrator Bug Review</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,650&family=Public+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (~70ch) with wide tables/diagrams allowed to scroll; findings as ledger entries with a severity stripe. */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --ink: #1d2326;
+  --muted: #5a6468;
+  --line: #d9ddda;
+  --accent: #1f6f78;          /* teal: the "answer key" colour */
+  --code-bg: #eef1ef;
+  --sev-pass: #b42318;        /* false PASS */
+  --sev-int: #6941c6;         /* integrity */
+  --sev-fail: #b54708;        /* false FAIL */
+  --sev-crash: #475467;       /* crash / clarity */
+  --ok: #067647;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111618; --surface: #182024; --ink: #e4e9e7; --muted: #9aa6a8; --line: #2c373b;
+    --accent: #5fc1c9; --code-bg: #1d272b; --sev-pass: #f97066; --sev-int: #b692f6;
+    --sev-fail: #fdb022; --sev-crash: #98a2b3; --ok: #47cd89; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111618; --surface: #182024; --ink: #e4e9e7; --muted: #9aa6a8; --line: #2c373b;
+  --accent: #5fc1c9; --code-bg: #1d272b; --sev-pass: #f97066; --sev-int: #b692f6;
+  --sev-fail: #fdb022; --sev-crash: #98a2b3; --ok: #47cd89; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 80px;
+}
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 650; line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.7rem; margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.25rem; margin-top: 24px; }
+p, ul, ol { margin: 8px 0; max-width: 68ch; }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code, pre { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { background: var(--code-bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; line-height: 1.5; margin: 8px 0; }
+pre code { background: none; padding: 0; }
+.eyebrow { font: 600 0.75rem/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.15rem; color: var(--ink); }
+.muted { color: var(--muted); }
+.scroll { overflow-x: auto; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font: 600 0.72rem/1 var(--body); letter-spacing: 0.04em; padding: 4px 7px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap; }
+.p-pass { color: var(--sev-pass); } .p-int { color: var(--sev-int); } .p-fail { color: var(--sev-fail); } .p-crash { color: var(--sev-crash); } .p-ok { color: var(--ok); }
+.tally { display: flex; flex-wrap: wrap; gap: 24px; margin: 16px 0; }
+.tally div { display: flex; flex-direction: column; }
+.tally b { font: 650 2rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.tally span { font-size: 0.85rem; color: var(--muted); }
+.finding { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--stripe); border-radius: 6px; padding: 16px 18px; margin: 16px 0; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.finding h3 { margin: 0; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.finding .label { font-weight: 600; }
+.finding dl { display: grid; grid-template-columns: 9.5em 1fr; gap: 6px 14px; margin: 8px 0 0; }
+.finding dt { font-weight: 600; color: var(--muted); font-size: 0.9rem; }
+.finding dd { margin: 0; min-width: 0; }
+@media (max-width: 560px) { .finding dl { grid-template-columns: 1fr; } .finding dt { margin-top: 6px; } }
+.s-pass { --stripe: var(--sev-pass); } .s-int { --stripe: var(--sev-int); } .s-fail { --stripe: var(--sev-fail); } .s-crash { --stripe: var(--sev-crash); }
+figure { margin: 16px 0; }
+figcaption { font-size: 0.88rem; color: var(--muted); margin-top: 6px; }
+svg text { font-family: var(--body); }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-key { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.d-bad { fill: none; stroke: var(--sev-pass); stroke-width: 2; stroke-dasharray: 5 4; }
+.d-good { fill: none; stroke: var(--ok); stroke-width: 2; }
+.d-arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.d-t { fill: var(--ink); font-size: 13px; }
+.d-s { fill: var(--muted); font-size: 11px; }
+.d-r { fill: var(--sev-pass); font-size: 11.5px; font-weight: 600; }
+.d-g { fill: var(--ok); font-size: 11.5px; font-weight: 600; }
+.d-head { fill: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; }
+.callout { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; margin: 12px 0; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<main>
+
+<p class="eyebrow">Branch claude/review &middot; 4 Nov 2026 &middot; report and tests only</p>
+<h1>Can we trust the PASS?</h1>
+<p class="lede">I reviewed the pipeline looking for ways it could say "the translation matches" when it doesn't, or let the AI see the answer. I found real ones, proved each with a small run, and turned them into tests you can tick off.</p>
+
+<h2 id="summary">One-screen summary</h2>
+
+<div class="tally">
+  <div><b>13</b><span>findings</span></div>
+  <div><b>5</b><span>can cause a wrong PASS</span></div>
+  <div><b>2</b><span>let the AI near the answer</span></div>
+  <div><b>11</b><span>reproduced by a run</span></div>
+  <div><b>22</b><span>failing tests = your to-do list</span></div>
+  <div><b>37</b><span>passing tests that lock in what works</span></div>
+</div>
+
+<p><strong>The core idea holds up.</strong> Comparing whole rows as a multiset (rows can be in any order, but every row must appear the same number of times) is the right design. Hundreds of random tables with a random known change all got caught. The Sale translation also matches the T-SQL on every edge case I tried for the lookups, NULLs and the delete-then-reinsert.</p>
+
+<p><strong>The risks are around the edges of that idea:</strong> which tables get compared, what gets compared (values but not types), what happens to "ignored" columns, stale files, and the fact that the generated code can read the answer key. Two harness bugs will also make honest translations fail on your Mac but not on a UTC machine, or crash on holdout data.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>#</th><th>Finding</th><th>Kind</th><th>Proved by</th><th>Still open on test-bench?</th></tr></thead>
+  <tbody>
+    <tr><td class="num">1</td><td><a href="#f1">diff.py only compares Sale_Staging</a></td><td><span class="pill p-pass">false PASS</span></td><td>test</td><td>Fixed by its check.py</td></tr>
+    <tr><td class="num">2</td><td><a href="#f2">Column types are never compared</a></td><td><span class="pill p-pass">false PASS</span></td><td>test</td><td>Open</td></tr>
+    <tr><td class="num">3</td><td><a href="#f3">Ignored columns aren't checked at all</a></td><td><span class="pill p-pass">false PASS</span></td><td>test</td><td>Fixed by its check.py</td></tr>
+    <tr><td class="num">4</td><td><a href="#f4">A crashed run leaves the old spark/ output behind</a></td><td><span class="pill p-pass">false PASS</span></td><td>test</td><td>Open</td></tr>
+    <tr><td class="num">5</td><td><a href="#f5">Two empty tables always pass</a></td><td><span class="pill p-pass">false PASS</span></td><td>test</td><td>Open</td></tr>
+    <tr><td class="num">6</td><td><a href="#f6">Generated code can copy the answer key</a></td><td><span class="pill p-int">integrity</span></td><td>test</td><td>Open</td></tr>
+    <tr><td class="num">7</td><td><a href="#f7">claude -p keeps its file and shell tools</a></td><td><span class="pill p-int">integrity</span></td><td>test (of the call), risk plausible</td><td>Open</td></tr>
+    <tr><td class="num">8</td><td><a href="#f8">run_legacy guesses column types from the data</a></td><td><span class="pill p-fail">false FAIL</span></td><td>tests + crash</td><td>Open</td></tr>
+    <tr><td class="num">9</td><td><a href="#f9">Results depend on the laptop's timezone</a></td><td><span class="pill p-fail">false FAIL</span></td><td>test</td><td>Open (bench runs in UTC)</td></tr>
+    <tr><td class="num">10</td><td><a href="#f10">Sale Key can never match</a></td><td><span class="pill p-fail">false FAIL</span></td><td>test-bench's real SQL Server</td><td>Handled by its check.py</td></tr>
+    <tr><td class="num">11</td><td><a href="#f11">datetime2 loses its last digit</a></td><td><span class="pill p-fail">false FAIL</span></td><td>plausible, not reproduced</td><td>Open</td></tr>
+    <tr><td class="num">12</td><td><a href="#f12">Missing key column crashes the explanation</a></td><td><span class="pill p-crash">crash</span></td><td>test</td><td>Open</td></tr>
+    <tr><td class="num">13</td><td><a href="#f13">requirements.txt is missing</a></td><td><span class="pill p-crash">setup</span></td><td>test</td><td>Fixed</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p><strong>If you only fix three things before the demo:</strong> 6 (sandbox the generated job, or the whole pitch has a hole), 9 (set the timezone, or ETL Cutoff fails on your Mac an hour out), and 2 + 8 together (real types, compared).</p>
+
+<h2 id="added">What I added</h2>
+
+<p>Nothing in <code>migrator/</code> or <code>jobs_pyspark/</code> changed. Everything new is in <code>tests/</code>, plus <code>pytest.ini</code> and this report.</p>
+
+<h3>A fake SQL Server that drives the real run_legacy code</h3>
+<p><code>tests/snapshot_builder.py</code> has a <code>FakeCursor</code> that pretends to be a pyodbc cursor. It knows each table's declared SQL type (copied from the WWI warehouse) and a handful of hand-made rows. The tests hand it to the real <code>run_legacy.snapshot()</code>, so the Parquet files come out exactly how your Mac would write them, quirks included.</p>
+<p>Why this matters: when you fix finding 8 in <code>run_legacy.py</code>, the end-to-end Spark tests built on top of it start passing on their own. If the builder wrote Parquet itself, they'd keep testing the old behaviour forever.</p>
+
+<h3>Tests as a to-do list</h3>
+<p>Every finding I could reproduce has a test marked <code>@pytest.mark.bug</code> that fails today and should pass once the bug is fixed. Next to them are lock-in tests for what already works, so a fix can't quietly break something else. <code>tests/README.md</code> maps each failing test to its finding and says what order to fix things in.</p>
+<pre><code>python -m pytest -m bug           # the to-do list: 22 failing
+python -m pytest -m "not bug"     # what works today: 37 passing</code></pre>
+
+<h3>Property tests for the checker</h3>
+<p><code>tests/test_diff_properties.py</code> uses Hypothesis to make hundreds of random little tables (ints, text with accents, 2-place decimals, dates, year-9999 timestamps, booleans, NULLs). For each one it makes a change that definitely matters: edit a cell, drop a row, duplicate a row, swap two values between rows. Every single one got caught. Shuffling rows never caused a FAIL. That's good evidence the multiset idea at the heart of <code>diff.py</code> is right.</p>
+
+<h3>End-to-end runs of the real Sale translation</h3>
+<p><code>tests/test_run_spark.py</code> runs <code>python migrator/run_spark.py sale jobs_pyspark/sale.py</code> exactly like you do, on a 2-line staging table. I worked out the expected results by hand from the T-SQL: staging gets City Key 5, Customer Key 7, Stock Item Keys 8 and 9, Salesperson Key 4; invoice 100's old line disappears from Fact.Sale and two new lines appear with Lineage Key 2; lineage row 2 is closed; the Sale cutoff moves to 2016-06-06 12:31:17. All four checks pass.</p>
+
+<h3>Before and after: where the trust can leak</h3>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 720 300" width="720" role="img" aria-labelledby="d1t">
+  <title id="d1t">Today: the generated job can read the answer key, and only one table is checked</title>
+  <text x="10" y="18" class="d-head">TODAY</text>
+  <rect x="10" y="40" width="130" height="56" rx="6" class="d-box"/>
+  <text x="75" y="64" text-anchor="middle" class="d-t">SQL Server job</text>
+  <text x="75" y="82" text-anchor="middle" class="d-s">run_legacy.py</text>
+  <rect x="190" y="30" width="150" height="36" rx="6" class="d-box"/>
+  <text x="265" y="53" text-anchor="middle" class="d-t">before/ (input)</text>
+  <rect x="190" y="76" width="150" height="36" rx="6" class="d-key"/>
+  <text x="265" y="99" text-anchor="middle" class="d-t">after/ (answer key)</text>
+  <text x="265" y="128" text-anchor="middle" class="d-s">types guessed from values (#8)</text>
+  <path d="M140 60 L188 48 M140 76 L188 92" class="d-arrow"/>
+  <rect x="190" y="170" width="150" height="56" rx="6" class="d-box"/>
+  <text x="265" y="194" text-anchor="middle" class="d-t">AI-written job</text>
+  <text x="265" y="212" text-anchor="middle" class="d-s">run_spark.py, full access</text>
+  <path d="M265 66 L265 72" class="d-arrow"/>
+  <path d="M215 66 C 160 110, 170 160, 215 170" class="d-arrow"/>
+  <path d="M320 112 C 370 140, 360 160, 320 172" class="d-bad"/>
+  <text x="372" y="150" class="d-r">can read it (#6)</text>
+  <rect x="400" y="176" width="140" height="44" rx="6" class="d-box"/>
+  <text x="470" y="203" text-anchor="middle" class="d-t">spark/</text>
+  <text x="470" y="240" text-anchor="middle" class="d-s">stale after a crash (#4)</text>
+  <path d="M340 198 L398 198" class="d-arrow"/>
+  <rect x="580" y="90" width="130" height="70" rx="6" class="d-box"/>
+  <text x="645" y="116" text-anchor="middle" class="d-t">diff.py</text>
+  <text x="645" y="134" text-anchor="middle" class="d-s">values only (#2)</text>
+  <text x="645" y="150" text-anchor="middle" class="d-s">1 of 4 tables (#1)</text>
+  <path d="M340 94 L578 112" class="d-arrow"/>
+  <path d="M540 196 L578 146" class="d-arrow"/>
+  <text x="645" y="186" text-anchor="middle" class="d-r">PASS</text>
+  <text x="10" y="285" class="d-s">Laptop timezone leaks into Spark (#9). Ignored columns aren't looked at (#3).</text>
+</svg>
+</div>
+<figcaption>Today. Red dashed line: nothing stops the translated job from reading <code>after/</code>.</figcaption>
+</figure>
+
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 720 300" width="720" role="img" aria-labelledby="d2t">
+  <title id="d2t">Suggested: typed snapshots, a sealed job run, a fresh output marker, and a checker over every table</title>
+  <text x="10" y="18" class="d-head">SUGGESTED</text>
+  <rect x="10" y="40" width="130" height="56" rx="6" class="d-box"/>
+  <text x="75" y="64" text-anchor="middle" class="d-t">SQL Server job</text>
+  <text x="75" y="82" text-anchor="middle" class="d-s">run_legacy.py</text>
+  <rect x="190" y="30" width="150" height="36" rx="6" class="d-box"/>
+  <text x="265" y="53" text-anchor="middle" class="d-t">before/ (input)</text>
+  <rect x="190" y="76" width="150" height="36" rx="6" class="d-key"/>
+  <text x="265" y="99" text-anchor="middle" class="d-t">after/ (answer key)</text>
+  <text x="265" y="128" text-anchor="middle" class="d-g">declared SQL types + hashes</text>
+  <path d="M140 60 L188 48 M140 76 L188 92" class="d-arrow"/>
+  <rect x="160" y="160" width="210" height="80" rx="8" class="d-good"/>
+  <text x="265" y="178" text-anchor="middle" class="d-g">sealed run: copy of before/ only, TZ=UTC</text>
+  <rect x="190" y="188" width="150" height="40" rx="6" class="d-box"/>
+  <text x="265" y="213" text-anchor="middle" class="d-t">AI-written job</text>
+  <path d="M215 66 C 140 110, 150 160, 200 188" class="d-arrow"/>
+  <rect x="400" y="176" width="140" height="44" rx="6" class="d-box"/>
+  <text x="470" y="196" text-anchor="middle" class="d-t">spark/</text>
+  <text x="470" y="212" text-anchor="middle" class="d-s">+ done marker</text>
+  <path d="M370 198 L398 198" class="d-arrow"/>
+  <rect x="580" y="80" width="130" height="96" rx="6" class="d-box"/>
+  <text x="645" y="104" text-anchor="middle" class="d-t">checker</text>
+  <text x="645" y="122" text-anchor="middle" class="d-s">every table</text>
+  <text x="645" y="138" text-anchor="middle" class="d-s">types + values</text>
+  <text x="645" y="154" text-anchor="middle" class="d-s">volatile cols masked</text>
+  <text x="645" y="170" text-anchor="middle" class="d-s">refuses stale output</text>
+  <path d="M340 94 L578 110" class="d-arrow"/>
+  <path d="M540 196 L578 160" class="d-arrow"/>
+  <text x="645" y="200" text-anchor="middle" class="d-g">PASS / FAIL per table</text>
+  <text x="10" y="285" class="d-s">The answer key never enters the folder the job runs in. The checker reads it only after the job has finished.</text>
+</svg>
+</div>
+<figcaption>Suggested. The sibling branch <code>claude/test-bench</code> already built the "every table, volatile columns masked" checker (<code>migrator/check.py</code>).</figcaption>
+</figure>
+
+<h2 id="findings">The findings</h2>
+<p>In order of how much damage they do to the claim "the old system's real output decides". Each has a tiny example, why a judge would care, a hint toward the fix (not the fix), and its test.</p>
+
+<h3 class="eyebrow" style="margin-top:24px">Wrong PASS</h3>
+
+<section class="finding s-pass" id="f1">
+  <h3><span class="pill p-pass">false PASS</span><span class="label">1. diff.py only compares Integration.Sale_Staging</span></h3>
+  <p>The Sale job changes four tables: Sale_Staging, Fact.Sale, Lineage and ETL Cutoff. <code>python migrator/diff.py</code> only ever looks at Sale_Staging. A translation that writes garbage into Fact.Sale still prints PASS. If <code>spark/Fact.Sale.parquet</code> is missing entirely, nothing notices.</p>
+  <dl>
+    <dt>Example</dt><dd>Fact.Sale in <code>after/</code> has Quantity 3 and 1; in <code>spark/</code> both are 999. Output of <code>python migrator/diff.py sale</code>:
+<pre><code>=== Sale_Staging: after (legacy) vs spark (translation) ===
+PASS
+  identical-twin check: 0 rows in A and 0 in B have no identical twin (2 columns compared)</code></pre>
+    Should be: FAIL, naming Fact.Sale.</dd>
+    <dt>Why it matters</dt><dd>The demo story is "every table the old job wrote matches". Right now it's one table out of four, and the one with the fewest moving parts.</dd>
+    <dt>Fix hint</dt><dd>Loop over every file in <code>after/</code>. A file missing from <code>spark/</code> is a FAIL, and so is an extra one. Exit with a non-zero code on any FAIL, so a script (or <code>loop.py</code>) can't miss it. <code>check.py</code> on test-bench does exactly this; worth reading.</dd>
+    <dt>Test</dt><dd><code>test_diff.py::TestFinding1_EveryTableIsCompared</code> (2 tests)</dd>
+  </dl>
+</section>
+
+<section class="finding s-pass" id="f2">
+  <h3><span class="pill p-pass">false PASS</span><span class="label">2. Column types are never compared</span></h3>
+  <p><code>diff.load()</code> turns every cell into a plain Python value. Python then says these are equal: <code>Decimal("1.10") == Decimal("1.100000")</code>, <code>3 == 3.0</code>, <code>True == 1</code>. So a translation that changes a column's type passes, as long as the values look the same.</p>
+  <dl>
+    <dt>Example</dt><dd>Legacy <code>Unit Price</code> is <code>decimal(18,2)</code> holding 1.10. Spark writes <code>decimal(38,6)</code> holding 1.100000 (Spark's decimal arithmetic widens like this all the time). Today: PASS. Should be: FAIL, "Unit Price: decimal(18,2) vs decimal(38,6)". Same for decimal to double (2.5), int to double, int to bigint, bit to int. All five reproduced.</dd>
+    <dt>Why it matters</dt><dd>A technical judge will ask "what if the types drift?" The downstream table is <code>decimal(18,2)</code>; a <code>double</code> column is a different table even if today's numbers happen to look the same. Also, the type is the thing that makes the next month's numbers round differently.</dd>
+    <dt>Related</dt><dd>When a type does differ in a way Python notices, the message is confusing. A Spark "timestamp with timezone" next to SQL's plain <code>datetime2</code> shows up as <code>datetime(2016, 6, 6, 12, 31, 17) -&gt; datetime(2016, 6, 6, 12, 31, 17, tzinfo=utc)</code> on every row. test-bench's first Movement translation failed in exactly this way: 27 rows that "differ" only in type.</dd>
+    <dt>Fix hint</dt><dd>Read both schemas with <code>pq.read_schema()</code> and compare them field by field before comparing rows. Report type differences on their own line. <strong>Do finding 8 first</strong>, or the legacy types you compare against are guesses.</dd>
+    <dt>Test</dt><dd><code>test_diff.py::TestFinding2_TypesAreCompared</code> (5 cases)</dd>
+  </dl>
+</section>
+
+<section class="finding s-pass" id="f3">
+  <h3><span class="pill p-pass">false PASS</span><span class="label">3. Ignoring a column means not looking at it at all</span></h3>
+  <p>Some columns can never match between two runs: <code>Data Load Completed</code> is set by <code>SYSDATETIME()</code>, and <code>Sale Key</code> comes from an identity counter (finding 10). They'll have to be ignored. But <code>ignore_cols</code> removes them from the comparison completely, so a translation that forgets the UPDATE also passes.</p>
+  <dl>
+    <dt>Example</dt><dd>Legacy: <code>Data Load Completed = 2026-11-04 21:00:01</code>. Spark: <code>NULL</code> (the translation never closed the lineage row). With <code>ignore_cols=["Data Load Completed"]</code>: PASS. Should be: FAIL. But a different time must still PASS.</dd>
+    <dt>Why it matters</dt><dd>The ignore list is exactly where a skeptical judge will poke. "You ignored the column the bug was in" is a bad answer to have to give.</dd>
+    <dt>Fix hint</dt><dd>Instead of dropping the column, replace each value with "has a value" or NULL before comparing, so filled-in vs empty still counts. test-bench's <code>check.py</code> calls this <code>mask()</code>, and also checks that rows the legacy job didn't touch come out of Spark identical in every column, ignored ones included.</dd>
+    <dt>Test</dt><dd><code>test_diff.py::TestFinding3_IgnoredColumnsStillGetChecked</code> (one fails now; the other must keep passing)</dd>
+  </dl>
+</section>
+
+<section class="finding s-pass" id="f4">
+  <h3><span class="pill p-pass">false PASS</span><span class="label">4. A crashed run leaves the previous run's output behind</span></h3>
+  <p><code>run_spark.py</code> only clears <code>spark/</code> after the job has run. If the job crashes first, it exits and the old files stay. The next <code>diff.py</code> grades the old translation's output.</p>
+  <dl>
+    <dt>Example</dt><dd>Run the noop job (writes all 8 files). Run a new translation that raises an error: exit code 1, but all 8 old files are still in <code>spark/</code>. Run diff.py: it compares them and prints PASS.</dd>
+    <dt>Why it matters</dt><dd>This bites hardest in <code>loop.py</code>: retry 3 crashes, the loop reads the folder, and reports retry 2's verdict as retry 3's. In a live demo nobody would spot it.</dd>
+    <dt>Fix hint</dt><dd>Clear <code>spark/</code> at the very start, before anything can fail. Write a small "done" file last (test-bench writes <code>run.json</code>) that names the job file, and have the checker refuse a folder without it.</dd>
+    <dt>Test</dt><dd><code>test_run_spark.py::test_finding4_failed_run_leaves_no_old_output</code></dd>
+  </dl>
+</section>
+
+<section class="finding s-pass" id="f5">
+  <h3><span class="pill p-pass">false PASS</span><span class="label">5. Two empty tables always pass</span></h3>
+  <p><code>reconcile()</code> learns the column names from the first row. An empty table has no first row, so it has no columns as far as the checker knows.</p>
+  <dl>
+    <dt>Example</dt><dd>Legacy: empty table with column <code>City Key int</code>. Spark: empty table with column <code>Wrong Column string</code>. Today: PASS, "0 columns compared". Should be: FAIL.</dd>
+    <dt>Why it matters</dt><dd>Small today, but holdout data should include a quiet day (empty staging), and some jobs only touch a table in rare cases. "0 columns compared" next to PASS also looks bad on screen.</dd>
+    <dt>Fix hint</dt><dd>Take column names from the file's schema, not from <code>rows[0]</code>. The same schema read as finding 2.</dd>
+    <dt>Test</dt><dd><code>test_diff.py::TestFinding5_EmptyTables</code></dd>
+  </dl>
+</section>
+
+<h3 class="eyebrow" style="margin-top:24px">The AI near the answer</h3>
+
+<section class="finding s-int" id="f6">
+  <h3><span class="pill p-int">integrity</span><span class="label">6. The generated job can copy the answer key</span></h3>
+  <p><code>run_spark.py</code> imports the AI's file and runs it as ordinary Python, from the repo folder, with full access to your Mac. The contract says "no reading files", but nothing enforces it.</p>
+  <dl>
+    <dt>Example</dt><dd>This "translation" translates nothing:
+<pre><code>def run(spark, tables):
+    out = {}
+    for path in glob.glob("snapshots/sale/after/*.parquet"):
+        out[os.path.basename(path)[:-8]] = spark.read.parquet(path)
+    return out</code></pre>
+    I gave <code>after/</code> a Quantity of 42 that no honest translation could guess. Result: run_spark exit 0, verdict PASS.</dd>
+    <dt>Why it matters</dt><dd>This is the one that breaks the pitch. "The AI never grades its own work" needs "and it can't peek at the answers" next to it. With a retry loop feeding failures back, a model optimising for PASS could land on this. It could also overwrite <code>after/</code>.</dd>
+    <dt>Fix hint</dt><dd>Run the job in a separate process whose working folder is a temp folder holding only a copy of <code>before/</code>, so relative paths can't reach <code>after/</code>. Store a hash of each <code>after/</code> file in <code>meta.json</code> and check it before grading, so tampering is caught. An absolute path would still get out; for that, run Spark in a Docker container with only the input folder mounted and no network. The relative-path test is the bar for now.</dd>
+    <dt>Test</dt><dd><code>test_run_spark.py::test_finding6_job_cannot_copy_the_answer_key</code></dd>
+  </dl>
+</section>
+
+<section class="finding s-int" id="f7">
+  <h3><span class="pill p-int">integrity</span><span class="label">7. claude -p keeps its file and shell tools while translating</span></h3>
+  <p>Good news first: <code>translate.py</code> already runs <code>claude</code> in an empty temp folder (the brief said the repo folder; that changed in commit 3292358). The prompt holds table layouts and the SQL, never rows. But <code>claude -p</code> still has Read, Bash and the rest, and what they may touch is decided by your own <code>~/.claude</code> settings. An empty working folder isn't a wall.</p>
+  <dl>
+    <dt>Example</dt><dd>Called today as <code>["claude", "-p"]</code>. Should be <code>["claude", "-p", "--tools", ""]</code>. I checked <code>claude --help</code> (v2.1.318): <em>Use "" to disable all tools</em>.</dd>
+    <dt>Status</dt><dd>The risk is plausible, not reproduced. I didn't run a real translation to see whether it would read <code>snapshots/</code>. The test checks the command line only.</dd>
+    <dt>Why it matters</dt><dd>Once the holdout exists, "the translator had no tools at all" is a much simpler sentence for the Responsible AI note than "it ran in a temp folder and probably didn't look".</dd>
+    <dt>Fix hint</dt><dd>Add <code>"--tools", ""</code> to the command. The translator only has to write text. test-bench also moved the answer keys out of the repo during its translations, which is a belt to go with these braces.</dd>
+    <dt>Test</dt><dd><code>test_translate.py::test_finding7_claude_gets_no_tools</code></dd>
+  </dl>
+</section>
+
+<h3 class="eyebrow" style="margin-top:24px">Wrong FAIL (the harness, not the translation)</h3>
+
+<section class="finding s-fail" id="f8">
+  <h3><span class="pill p-fail">false FAIL</span><span class="label">8. run_legacy guesses each column's type from its values</span></h3>
+  <p><code>read_table()</code> builds each column with <code>pa.array(values)</code>. pyarrow then guesses a type from whatever values happen to be there. The real SQL type is never used.</p>
+  <dl>
+    <dt>Example</dt><dd>What comes out for <code>Fact.Sale</code> in my tiny snapshot:
+<div class="scroll"><table>
+  <thead><tr><th>Column</th><th>SQL type</th><th>Parquet type today</th></tr></thead>
+  <tbody>
+    <tr><td>Unit Price</td><td>decimal(18,2)</td><td>decimal(6,2), because the largest value is 1899.00</td></tr>
+    <tr><td>Tax Rate</td><td>decimal(18,3)</td><td>decimal(5,3)</td></tr>
+    <tr><td>Quantity</td><td>int</td><td>int64</td></tr>
+    <tr><td>Staging City Key (all NULL before the job)</td><td>int</td><td>null</td></tr>
+    <tr><td>Any column of an empty table</td><td>anything</td><td>null</td></tr>
+  </tbody>
+</table></div>
+    </dd>
+    <dt>What breaks</dt><dd><code>sale.py</code> casts new rows to Fact.Sale's (guessed) types. Stage a line priced 12,500.00, which SQL Server's <code>decimal(18,2)</code> takes happily, and Spark crashes:
+<pre><code>[NUMERIC_VALUE_OUT_OF_RANGE.WITH_SUGGESTION] 12500.00 cannot be represented as Decimal(6, 2).</code></pre>
+    Give it a day with no sales (empty staging) and it crashes differently, because every column became <code>null</code>, which Spark reads as int:
+<pre><code>Cannot resolve "(Last Modified When &gt; __d_from)" due to data type mismatch:
+... ("INT" and "TIMESTAMP_NTZ")</code></pre>
+    My first tiny fixture even crashed on 12.30 vs <code>decimal(3,2)</code> before I padded Fact.Sale with a big row.</dd>
+    <dt>Why it matters</dt><dd>It doesn't show on the dev month because Fact.Sale has 228k rows, so the guessed precision is wide. But the holdout is exactly where a new largest value or an empty day turns up, and the translation gets blamed for a harness bug. It also means the AI's prompt shows <code>decimal128(6, 2)</code> and <code>null</code> instead of the real types, and it's why finding 2 can't be fixed alone.</dd>
+    <dt>Fix hint</dt><dd>Build a <code>pa.schema</code> from the column metadata (<code>sys.columns</code> has <code>precision</code> and <code>scale</code>; pyodbc's <code>cursor.description</code> has them too) and pass it to <code>pa.table(..., schema=...)</code>. A small mapping does it: int to <code>pa.int32()</code>, bigint to <code>pa.int64()</code>, bit to <code>pa.bool_()</code>, decimal(p,s) to <code>pa.decimal128(p, s)</code>, date to <code>pa.date32()</code>, datetime2 to <code>pa.timestamp("us")</code>, nvarchar to <code>pa.string()</code>.</dd>
+    <dt>Heads-up</dt><dd>Once 8 and 2 are both fixed, expect <code>Integration.Sale_Staging</code> to flip to FAIL: <code>sale.py</code> casts the keys to <code>long</code> (64-bit) but the columns are <code>int</code> (32-bit). That's a true finding the loop should fix. Don't hand-edit the translation.</dd>
+    <dt>Tests</dt><dd><code>test_run_legacy.py::TestFinding8_DeclaredTypesAreKept</code> (5) and <code>test_run_spark.py::TestFinding8_GuessedTypesBreakTheTranslation</code> (2)</dd>
+  </dl>
+</section>
+
+<section class="finding s-fail" id="f9">
+  <h3><span class="pill p-fail">false FAIL</span><span class="label">9. Results depend on the laptop's timezone</span></h3>
+  <p><code>sale.py</code> reads <code>Source System Cutoff Time</code> into Python with <code>.collect()</code>, then puts it back with <code>F.lit()</code>. PySpark reads a plain Python datetime in the <em>laptop's</em> timezone. The session setting <code>spark.sql.session.timeZone = UTC</code> doesn't cover this.</p>
+  <dl>
+    <dt>Example</dt><dd>Same translation, same input, ETL Cutoff for Sale:
+<div class="scroll"><table>
+  <thead><tr><th>Machine timezone</th><th>Cutoff Time written</th></tr></thead>
+  <tbody>
+    <tr><td>UTC</td><td>2016-06-06 12:31:17 (right)</td></tr>
+    <tr><td>Europe/Dublin (June is UTC+1)</td><td>2016-06-06 11:31:17</td></tr>
+    <tr><td>America/New_York</td><td>2016-06-06 16:31:17</td></tr>
+  </tbody>
+</table></div></dd>
+    <dt>Prediction</dt><dd>On your Mac (if it's set to Irish time), <code>Integration.ETL Cutoff</code> will FAIL by exactly one hour the first time you compare it. test-bench reports Sale passing on all 8 tables, but its bench runs in UTC, so that's consistent with this prediction rather than against it.</dd>
+    <dt>Why it matters</dt><dd>A verdict that changes with the laptop's clock setting can't be trusted either way. And it would happen on stage, in Dublin.</dd>
+    <dt>Fix hint</dt><dd>In <code>start_spark()</code>, before the JVM starts: <code>os.environ["TZ"] = "UTC"</code> then <code>time.tzset()</code>. I tried exactly that on a scratch copy of <code>run_spark.py</code> with the Mac set to Dublin: the cutoff came out right. Pinning the JVM too (<code>-Duser.timezone=UTC</code> in <code>spark.driver.extraJavaOptions</code>) is a sensible extra.</dd>
+    <dt>Test</dt><dd><code>test_run_spark.py::test_finding9_result_does_not_depend_on_laptop_timezone</code></dd>
+  </dl>
+</section>
+
+<section class="finding s-fail" id="f10">
+  <h3><span class="pill p-fail">false FAIL</span><span class="label">10. Sale Key can never match</span></h3>
+  <p><code>Sale Key</code> is an identity column: SQL Server hands each new row the next number from a counter. A rollback doesn't give numbers back, so every <code>run_legacy.py</code> run burns 5,224 numbers. <code>sale.py</code> uses "largest existing key + row number" instead, which only matches on the very first run after a restore, and even then only if SQL Server happens to insert in staging-key order.</p>
+  <dl>
+    <dt>Evidence</dt><dd>Not reproducible here (no SQL Server). But test-bench ran the legacy job twice on the same input on a real SQL Server and compared: Sale Key differed on all 5,224 inserted rows (243938 in run 1, 249162 in run 2). Everything else in Fact.Sale agreed. <code>Data Load Completed</code> differed on its 1 row. That's the proof ground rule 2 asks for before ignoring a column.</dd>
+    <dt>Fix hint</dt><dd>Mask Sale Key for new rows (finding 3's approach). Then add the checks that are still possible: new keys are unique, and none of them reuse a key from <code>before/</code>. Copy the "run the legacy job twice" trick into your own toolkit; it's the honest way to build any job's ignore list.</dd>
+    <dt>Test</dt><dd>None here. test-bench's <code>migrator/probe.py</code> is the check.</dd>
+  </dl>
+</section>
+
+<section class="finding s-fail" id="f11">
+  <h3><span class="pill p-fail">false FAIL</span><span class="label">11. datetime2 loses its last digit</span></h3>
+  <p><span class="pill p-crash">plausible, not reproduced</span> SQL Server's <code>datetime2(7)</code> stores times to 100 nanoseconds. Python's datetime stops at microseconds, so pyodbc drops the 7th digit. The T-SQL compares <code>[Last Modified When] &gt; [Valid From]</code> at full precision; Spark compares the trimmed values. Two times 300 ns apart become equal, and a strict <code>&gt;</code> can flip.</p>
+  <dl>
+    <dt>Why only plausible</dt><dd>I can't run SQL Server here, and WWI's validity dates look like whole seconds, so it may never happen on this data.</dd>
+    <dt>How to check on your Mac</dt><dd><code>SELECT COUNT(*) FROM Integration.Sale_Staging WHERE DATEPART(nanosecond, [Last Modified When]) % 1000 &lt;&gt; 0</code>, and the same on each dimension's Valid From and Valid To. Zero everywhere means you can stop worrying.</dd>
+  </dl>
+</section>
+
+<h3 class="eyebrow" style="margin-top:24px">Crashes and setup</h3>
+
+<section class="finding s-crash" id="f12">
+  <h3><span class="pill p-crash">crash</span><span class="label">12. A missing key column crashes the explanation</span></h3>
+  <p>If the Spark output lost the key column, <code>reconcile()</code> correctly decides FAIL, then crashes with <code>KeyError: 'Sale Staging Key'</code> while building the explanation. The verdict never prints.</p>
+  <dl>
+    <dt>Fix hint</dt><dd>Before calling <code>diff()</code>, check every key column is in both tables. If not, skip the explanation and say which key is missing.</dd>
+    <dt>Test</dt><dd><code>test_diff.py::TestFinding12_ExplanationDoesNotCrash</code></dd>
+  </dl>
+</section>
+
+<section class="finding s-crash" id="f13">
+  <h3><span class="pill p-crash">setup</span><span class="label">13. requirements.txt is missing</span></h3>
+  <p>SETUP step 9 says <code>pip install -r requirements.txt</code>, but the file isn't in main. SETUP also never mentions Java or PySpark, which <code>run_spark.py</code> needs. test-bench added a pinned one (pyspark 4.2.1, pyarrow 25.0.1, pyodbc 5.3.0, python-dotenv 1.2.4). Pinning matters here: older Spark (before 3.4) reads plain timestamps as timezone-aware ones, which would turn every timestamp into a finding-2-style FAIL.</p>
+  <dl><dt>Test</dt><dd><code>test_setup.py::test_finding13_requirements_file_exists</code> (passes on test-bench already)</dd></dl>
+</section>
+
+<h3>Small things, no test</h3>
+<ul>
+  <li><code>translate.py</code>'s prompt has a typo the AI reads every time: "Work out the right type <strong>froasm</strong> the SQL".</li>
+  <li><code>ask_claude</code> has no timeout, so a hung <code>claude</code> hangs the loop forever. <code>subprocess.run(..., timeout=600)</code> fixes it.</li>
+  <li>When a Spark job fails, the real error is buried under a several-kilobyte JSON log line from Spark's <code>DataFrameQueryContextLogger</code>. Printing only the exception's first line, then "full trace below", would help a lot in a live demo.</li>
+  <li><code>translate.py</code> reads the SQL with <code>read_text()</code>, so the file's byte-order mark goes into the prompt. Harmless, but <code>encoding="utf-8-sig"</code> (as run_legacy already uses) is tidier.</li>
+  <li>If the procedure fails inside <code>run_legacy.py</code>, <code>before/</code> is new but <code>after/</code> is left over from the last run. Clearing <code>after/</code> first (like finding 4) avoids a mismatched pair.</li>
+</ul>
+
+<h2 id="sale">sale.py next to the T-SQL: where holdout data should push</h2>
+<p>I ran the real <code>sale.py</code> through <code>run_spark.py</code> on tiny inputs built for each case, and compared the output with what the T-SQL would do by reading it. These are the cases the dev month probably doesn't contain, so they're the ones holdout data should include.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Case</th><th>T-SQL does</th><th>sale.py did</th><th>Verdict</th></tr></thead>
+  <tbody>
+    <tr><td>Sale time exactly equals a dimension version's start (and the previous version's end)</td><td>Previous version: <code>&gt; Valid From</code> fails on the new one, <code>&lt;= Valid To</code> matches the old one. Key 5.</td><td>Key 5</td><td><span class="pill p-ok">same</span></td></tr>
+    <tr><td>No matching dimension row; NULL source ID</td><td>COALESCE to 0</td><td>0, 0</td><td><span class="pill p-ok">same</span></td></tr>
+    <tr><td>Staged line with NULL invoice ID</td><td>Inserted; deletes nothing (<code>NULL IN (...)</code> is never true)</td><td>Same: 3 rows, invoice 100's old line gone</td><td><span class="pill p-ok">same</span></td></tr>
+    <tr><td>Lineage row named <code>'sale'</code> (lower case)</td><td>Matches, if the database collation ignores case (WWI's does, I believe; check with <code>SELECT DATABASEPROPERTYEX('WideWorldImportersDW','Collation')</code>)</td><td>Doesn't match: new Fact.Sale rows get Lineage Key NULL</td><td><span class="pill p-fail">differs</span></td></tr>
+    <tr><td>ETL Cutoff row named <code>'Sale '</code> (trailing space)</td><td>Matches: SQL Server's <code>=</code> ignores trailing spaces under any collation. Cutoff updated.</td><td>Not updated</td><td><span class="pill p-fail">differs</span></td></tr>
+    <tr><td>No open lineage row</td><td>@LineageKey is NULL; inserting NULL into Fact.Sale's Lineage Key should fail if the column is NOT NULL (check with <code>sp_help 'Fact.Sale'</code>), so the whole job errors and rolls back</td><td>Succeeds quietly, writes NULL Lineage Keys and a NULL cutoff</td><td><span class="pill p-fail">differs</span></td></tr>
+    <tr><td>Two dimension versions with the same Valid From, both valid</td><td>Unspecified: <code>TOP(1) ORDER BY [Valid From]</code> picks either</td><td>Lowest key, always</td><td><span class="pill p-crash">untestable</span></td></tr>
+    <tr><td>New largest price / empty staging</td><td>Fine</td><td>Crash</td><td>Finding 8 (harness)</td></tr>
+    <tr><td>Machine not in UTC</td><td>n/a</td><td>Cutoff shifted</td><td>Finding 9 (harness)</td></tr>
+    <tr><td>Sale Key for new rows</td><td>Next identity number</td><td>Largest key + row number</td><td>Finding 10 (can't match)</td></tr>
+  </tbody>
+</table>
+</div>
+<p>The tie case needs a decision rather than data: when the legacy result itself isn't fixed, there's nothing to compare against. I'd keep such rows out of the holdout and mention the case in the Responsible AI note.</p>
+<p>The "no open lineage row" case also needs the harness to cope: today <code>run_legacy.py</code> would stop with the SQL error. Recording "the legacy job failed with this error" as the answer key, and expecting the translation to fail too, would turn that into a good holdout test.</p>
+
+<h2 id="testbench">Checked against claude/test-bench</h2>
+<p>The sibling session pushed its branch while I worked. It has a real SQL Server and real results, so I compared its evidence with my predictions and ran my test suite against its code.</p>
+<ul>
+  <li><strong>Confirms finding 10.</strong> Its legacy-twice probe found Sale Key unstable on 5,224 rows and Data Load Completed on 1 row. It also found <code>Dimension.City</code>'s City Key unstable for the City job.</li>
+  <li><strong>Confirms finding 2's side effect.</strong> Its first Movement translation failed only because timestamps came out as Spark's timezone-aware type: 14 + 13 rows "differ" in type, not value.</li>
+  <li><strong>Fixes findings 1, 3 and 13.</strong> <code>check.py</code> checks every table and fails on a missing file; it masks volatile columns and checks untouched rows strictly; it adds requirements.txt.</li>
+  <li><strong>Consistent with finding 9.</strong> "Sale passes on all 8 tables" was measured in UTC. I predict the Mac differs on ETL Cutoff.</li>
+  <li><strong>Still open there:</strong> 2, 4, 5, 6, 7, 8, 9, 12. With my tests copied onto its branch: 21 failing, 38 passing. My finding 1 and 3 tests still fail there only because they test <code>diff.py</code> directly, while the fix lives in <code>check.py</code>.</li>
+</ul>
+<p>Nothing in its results contradicts a prediction here.</p>
+
+<h2 id="run">How to run it on your Mac</h2>
+<p>From the repo folder, in your venv:</p>
+<pre><code>git fetch origin
+git checkout claude/review
+source .venv/bin/activate
+pip install pytest hypothesis pyspark==4.2.1 pyarrow python-dotenv</code></pre>
+<p>The fast set (no Spark, about 20 seconds):</p>
+<pre><code>python -m pytest -m "not spark"</code></pre>
+<p>Everything, including the Spark runs (about 3 minutes):</p>
+<pre><code>python -m pytest</code></pre>
+<p>Just the to-do list, one line per test:</p>
+<pre><code>python -m pytest -m bug -v</code></pre>
+<p>What a full run printed for me (Python 3.10.20, PySpark 4.2.1, Java 21):</p>
+<pre><code>FAILED tests/test_diff.py::TestFinding1_EveryTableIsCompared::test_wrong_fact_sale_is_reported
+FAILED tests/test_diff.py::TestFinding1_EveryTableIsCompared::test_missing_spark_output_is_reported
+FAILED tests/test_diff.py::TestFinding2_TypesAreCompared::test_type_drift_is_caught[decimal-widened]
+FAILED tests/test_diff.py::TestFinding2_TypesAreCompared::test_type_drift_is_caught[decimal-to-double]
+FAILED tests/test_diff.py::TestFinding2_TypesAreCompared::test_type_drift_is_caught[int-to-double]
+FAILED tests/test_diff.py::TestFinding2_TypesAreCompared::test_type_drift_is_caught[int-to-bigint]
+FAILED tests/test_diff.py::TestFinding2_TypesAreCompared::test_type_drift_is_caught[bit-to-int]
+FAILED tests/test_diff.py::TestFinding3_IgnoredColumnsStillGetChecked::test_never_filled_in_is_caught
+FAILED tests/test_diff.py::TestFinding5_EmptyTables::test_empty_tables_with_different_columns_fail
+FAILED tests/test_diff.py::TestFinding12_ExplanationDoesNotCrash::test_missing_key_column_is_a_fail_not_a_crash
+FAILED tests/test_run_legacy.py::TestFinding8_DeclaredTypesAreKept::... (5 tests)
+FAILED tests/test_run_spark.py::test_finding4_failed_run_leaves_no_old_output
+FAILED tests/test_run_spark.py::test_finding6_job_cannot_copy_the_answer_key
+FAILED tests/test_run_spark.py::test_finding9_result_does_not_depend_on_laptop_timezone
+FAILED tests/test_run_spark.py::TestFinding8_GuessedTypesBreakTheTranslation::test_new_largest_price
+FAILED tests/test_run_spark.py::TestFinding8_GuessedTypesBreakTheTranslation::test_day_with_no_sales
+FAILED tests/test_setup.py::test_finding13_requirements_file_exists
+FAILED tests/test_translate.py::test_finding7_claude_gets_no_tools
+22 failed, 37 passed</code></pre>
+<p>To check finding 9 against the real answer key once you've run the legacy job:</p>
+<pre><code>python -c "import pyarrow.parquet as pq; print(pq.read_table('snapshots/sale/after/Integration.ETL Cutoff.parquet').to_pylist()[:3])"
+python migrator/run_spark.py sale jobs_pyspark/sale.py
+python -c "import pyarrow.parquet as pq; print(pq.read_table('snapshots/sale/spark/Integration.ETL Cutoff.parquet').to_pylist()[:3])"</code></pre>
+<p>If the Sale row's time is an hour apart between the two, that's finding 9.</p>
+
+<h2 id="decisions">Decisions I made, and why</h2>
+<ul>
+  <li><strong>Tests that fail today, on purpose.</strong> You asked for a to-do list you can tick off. A failing test is a to-do item that checks itself. The <code>bug</code> marker keeps them separate, so <code>-m "not bug"</code> stays green as a safety net while you work.</li>
+  <li><strong>Drive the real run_legacy through a fake cursor</strong> instead of writing Parquet in the tests. Otherwise the end-to-end tests would freeze today's quirks in place and never notice your fix.</li>
+  <li><strong>Run run_spark.py as a command</strong>, the way you do, rather than importing its functions. Slower (a Spark start per test, ~15 seconds each), but it catches what a real run catches: the working folder, environment variables, exit codes.</li>
+  <li><strong>One helper to update when APIs change.</strong> Tests go through <code>verdict_for_files()</code> and <code>run_spark_cli()</code> in <code>tests/conftest.py</code>, so renaming something in <code>diff.py</code> means changing one function, not twenty tests.</li>
+  <li><strong>No sale.py correctness tests beyond a smoke test.</strong> Hand-written expected values for translations are a small version of "the AI's helper grades the AI". The real answer key has to come from SQL Server, and the holdout is the sibling branch's job. I listed the cases instead.</li>
+  <li><strong>Python 3.10 for every run</strong>, to match your Mac (the container had 3.13). Same PySpark (4.2.1) as test-bench pins.</li>
+  <li><strong>Severity order follows the pitch</strong>, not how hard a bug is to fix. A wrong PASS ranks above a crash, because a crash is loud and a wrong PASS is silent.</li>
+</ul>
+
+<h2 id="limits">What didn't work, limits, what's left</h2>
+<ul>
+  <li><strong>No SQL Server here.</strong> Findings 10 and 11, and the collation and NOT NULL rows in the sale.py table, are reasoned from the T-SQL and documented SQL Server behaviour. Finding 10 is confirmed by test-bench's real run; 11 and those two table rows are not.</li>
+  <li><strong>Finding 7's real risk isn't measured.</strong> I didn't run a live translation to see whether Claude would actually read files outside its folder; the test checks the command only.</li>
+  <li><strong>Finding 6's test uses a relative path.</strong> A sealed working folder fixes that test, but an absolute path would still reach <code>after/</code>. Fully closing it needs a container or a separate OS user.</li>
+  <li><strong>The tiny fixture's column lists are trimmed</strong> for the dimension tables, and I typed the WWI column types from memory of its DDL; worth a glance against <code>sp_help</code>.</li>
+  <li><strong>I first wrote my fixture with small Fact.Sale values</strong>, and the baseline crashed. That became finding 8's best evidence, and the fixture now carries one big row with a comment saying why.</li>
+  <li><strong>Left for you:</strong> the fixes themselves, deciding whether int vs bigint should be a FAIL or a warning, and the "legacy job errored" case in the harness.</li>
+</ul>
+
+<h2 id="judges">Explaining this to the judges</h2>
+<p class="muted">For the teammate. No Spark or data-warehouse knowledge needed.</p>
+
+<p><strong>What the tool does.</strong> Old company systems run "jobs" every night that move and tidy up data, written in an old database language. Our tool asks an AI to rewrite each job for a modern system. Then we check the rewrite by running both on the same data and comparing the results, row by row. The old system's real output is the answer key. The AI doesn't get a vote.</p>
+
+<p><strong>What this review was for.</strong> If the answer key decides, the checking has to be airtight. So I went looking for every way the checker could say "matches" when it doesn't. Think of a teacher grading with an answer sheet. Things that would go wrong:</p>
+<ul>
+  <li><strong>Only marking page one of a four-page exam</strong> (finding 1). The checker only looked at one of the four tables the job writes.</li>
+  <li><strong>Accepting "3.0" when the answer is "3"</strong> (finding 2). The numbers looked the same, but the format was different, and the format matters to whoever uses the table next.</li>
+  <li><strong>Skipping a question entirely because its answer changes daily</strong> (finding 3). Some fields are a timestamp of "when the job ran", so they'll never match. But we should still check the student wrote <em>something</em> there.</li>
+  <li><strong>Grading last week's exam by mistake</strong> (finding 4). If the new attempt crashed, the old results were still on the desk.</li>
+  <li><strong>Leaving the answer sheet on the desk during the exam</strong> (finding 6). The AI's code could open the answer key and copy it. That's the big one, and the fix is to run it in a room that only has the question paper.</li>
+</ul>
+
+<p><strong>And two ways an honest answer could be marked wrong:</strong></p>
+<ul>
+  <li><strong>The marker's clock was set to Irish time</strong> (finding 9). One date came out an hour off, only because of the laptop's timezone. On a computer set to UTC it's fine.</li>
+  <li><strong>The answer sheet's boxes were drawn too small</strong> (finding 8). We recorded "prices up to 1,899" because that's what we'd seen, so a price of 12,500 didn't fit, even though the old system handles it fine.</li>
+</ul>
+
+<p><strong>How we know it's real.</strong> Every finding comes with a small test that shows it happening. 22 tests fail today, one per problem; they'll pass once each is fixed. 37 more pass and protect the parts that already work. One test generates hundreds of random tables, changes one thing, and makes sure the checker notices. It always did. That's the heart of the checker, and it's solid.</p>
+
+<p><strong>The one-line version for the stage:</strong> "We didn't just check the AI; we checked the checker, found where it could be fooled, and wrote a test for each one."</p>
+
+<p class="muted" style="margin-top:40px">Report written on branch <code>claude/review</code>. Tests in <code>tests/</code>; see <code>tests/README.md</code>.</p>
+
+</main>

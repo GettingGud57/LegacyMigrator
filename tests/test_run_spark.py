@@ -62,15 +62,17 @@ def test_noop_round_trip_changes_nothing(tmp_path):
         assert diff.reconcile(before, spark)["status"] == "pass", f.stem
 
 
+@pytest.fixture(scope="module")
+def work(tmp_path_factory):
+    """One run of sale.py on the tiny snapshot, shared by the tests below."""
+    work = make_workdir(tmp_path_factory.mktemp("sale"))
+    proc = run_spark_cli(work, SALE_JOB)
+    assert proc.returncode == 0, explain(proc)
+    return work
+
+
 class TestTheSaleTranslation:
     """jobs_pyspark/sale.py on the tiny snapshot, checked against hand-worked T-SQL results."""
-
-    @pytest.fixture(scope="class")
-    def work(self, tmp_path_factory):
-        work = make_workdir(tmp_path_factory.mktemp("sale"))
-        proc = run_spark_cli(work, SALE_JOB)
-        assert proc.returncode == 0, explain(proc)
-        return work
 
     def test_staging_gets_dimension_keys(self, work):
         got = {(r["Sale Staging Key"], r["City Key"], r["Customer Key"], r["Bill To Customer Key"],
