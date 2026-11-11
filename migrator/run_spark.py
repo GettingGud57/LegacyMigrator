@@ -21,6 +21,7 @@ import tempfile
 import time
 import traceback
 from pathlib import Path
+from cheat import check_job
 
 from dotenv import load_dotenv
 
@@ -87,6 +88,11 @@ def main():
     if len(sys.argv) != 3:
         sys.exit("Usage: python migrator/run_spark.py <job> path/to/job.py")
     job_name, job_path = sys.argv[1], Path(sys.argv[2])
+    problems = check_job(job_path)
+    if problems:
+        sys.exit("Job rejected before running:\n" + "\n".join(problems))
+    
+    
     before_dir = Path("snapshots") / job_name / "before"
     out_dir = Path("snapshots") / job_name / "spark"
     files = sorted(before_dir.glob("*.parquet"))
