@@ -15,6 +15,7 @@ Usage (from the repo root):
     python migrator/run_spark.py sale path/to/job.py
 """
 import importlib.util
+import os
 import shutil
 import sys
 import tempfile
@@ -29,6 +30,12 @@ from dotenv import load_dotenv
 def start_spark():
     # .env sets JAVA_HOME and SPARK_LOCAL_IP, which must be in place before the JVM starts
     load_dotenv(override=True)
+    # Timestamps in the snapshots have no timezone. Spark's session is UTC, but collect()
+    # and F.lit() convert Python datetimes using the process's local timezone, which shifts
+    # values by the local UTC offset (an hour in Irish summer time). Run the whole process,
+    # Python and the JVM it starts, in UTC so a timestamp round-trips unchanged.
+    os.environ["TZ"] = "UTC"
+    time.tzset()
     from pyspark.sql import SparkSession
 
     spark = (
@@ -124,9 +131,14 @@ def main():
     spark_counts = {}
     try:
         for f in files:
-            df = changed.get(f.stem, tables[f.stem])
-            write_parquet(df, out_dir / f.name)
-            spark_counts[f.stem] = spark.read.parquet(str(out_dir / f.name)).count()
+            if f.stem in changed:
+                write_parquet(changed[f.stem], out_dir / f.name)
+                spark_counts[f.stem] = spark.read.parquet(str(out_dir / f.name)).count()
+            else:
+                # Not returned by the job: keep the original file byte for byte, so Spark's
+                # re-encoding (column types, timestamps) can't make an untouched table look changed
+                shutil.copyfile(f, out_dir / f.name)
+                spark_counts[f.stem] = before_counts[f.stem]
     except Exception:
         fail(f"writing {f.name}, which runs the job's transformations", job_path)
     job_seconds = time.perf_counter() - job_started

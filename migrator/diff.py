@@ -76,6 +76,9 @@ def diff(rows_a, rows_b, key_cols, ignore_cols=()):
         "dupes_b": b_result["dupes"],
     }
 
+PRESENT = "<value present, not compared>"
+
+
 
 def show(title, items, limit):
     """Print a titled list, at most `limit` items. Prints nothing if the list is empty."""

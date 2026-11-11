@@ -13,10 +13,14 @@ The PDF is the source of truth over the brief.
 
 ## Project rules
 
-- Never write `migrator/diff.py` or `loop.py`.
-  They are written by hand.
-  Reviewing them and answering questions about them is fine.
-  If asked for reconciliation or retry code, stop and offer a review instead.
+- Never write `migrator/diff.py`.
+  It is the judge and is written by hand.
+  Reviewing it and answering questions about it is fine.
+  If asked for reconciliation code, stop and offer a review instead.
+- `migrator/loop.py` (the retry loop) may be AI-assisted, but it never decides PASS or FAIL itself.
+  Every verdict comes from `diff.reconcile`.
+- The key and ignored columns per table live in `jobs/<job>.json` and are chosen by a human.
+  The translator and the loop must never change them.
 - The translator must never see holdout data or holdout diffs.
 - Translations reproduce legacy behaviour, quirks included.
   Do not "improve" the logic.

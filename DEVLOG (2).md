@@ -79,6 +79,7 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - [x] Python harness: save before (input) and after (answer key) snapshots (done 31 Oct)
 - [x] Repo + SETUP.md (done 31 Oct)
 - [ ] `diff.py`, hand-written
+  - [ ] Bookmarked (11 Nov): also compare column types, since today an int32 column that comes back as int64 with the same numbers still passes.
 - [ ] **6 Nov:** one job translated to PySpark and reconciled end to end. Miss → pull out, time goes to LeetCode
 - [ ] 10 Nov: holdout check + retry loop working, demo-able
 - [ ] 12 Nov: deck, diagram, Responsible AI note, 3-min video drafted

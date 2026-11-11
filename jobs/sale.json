@@ -1,0 +1,21 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+  "keys": {
+    "Integration.Sale_Staging": ["Sale Staging Key"],
+    "Integration.Lineage": ["Lineage Key"],
+    "Integration.ETL Cutoff": ["Table Name"],
+    "Fact.Sale": ["Sale Key"],
+    "Dimension.City": ["City Key"],
+    "Dimension.Customer": ["Customer Key"],
+    "Dimension.Stock Item": ["Stock Item Key"],
+    "Dimension.Employee": ["Employee Key"]
+  },
+  "ignore": {
+    "Fact.Sale": {
+      "Sale Key": "identity column: SQL Server numbers new rows itself and never rolls the counter back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran"
+    }
+  }
+}
