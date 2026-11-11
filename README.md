@@ -69,17 +69,6 @@ So far: Microsoft's MigrateStagedSaleData, 8 tables, PASS
 
 
 
-| | T | |
-|---|---|---|
-| | 26.6 | T. |
-| | | |
-| | |. |
-| | | Runs SQL Server 2022 (`mcr.microsoft.com/mssql/server:2022-latest`), which executes the legacy jobs. On Apple Silicon, turn on Docker's Rosetta setting or SQL Server crashes after a few minutes ([SETUP step 2](SETUP.md#2-docker-desktop)). |
-| Microsoft ODBC Driver 18 + unixODBC | 18.7.1.1 / 2.3.14 | Lets Python (`pyodbc`) talk to SQL Server. A plain `brew install` isn't enough, so follow [SETUP step 8](SETUP.md#8-odbc-driver-lets-python-talk-to-sql-server). |
-| Anthropic API key | `claude-sonnet-5-5` (default model) | `translate.py` calls Claude to write the PySpark. Each call costs money, and the tool prints the cost after every call. |
-
-
-
 
 
 
