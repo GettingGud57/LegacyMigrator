@@ -152,12 +152,13 @@ def reconcile(rows_a, rows_b, key_cols=None, ignore_cols=(), before_rows=None):
     result = compare_rows(mask(rows_a, ignore), mask(rows_b, ignore), cols)         # whole rows with no exact match
     result["cols_only_a"] = sorted(a_cols - b_cols )
     result["cols_only_b"] = sorted(b_cols - a_cols )
+    keys_ok = bool(key_cols) and all(col in a_cols and col in b_cols for col in key_cols)
     
     if before_rows is not None:                       # rows the legacy job left alone must stay exactly the same
         untouched = compare_rows(unchanged(rows_a, before_rows), unchanged(rows_b, before_rows), cols)
         result["untouched_only_a"] = untouched["only_a"]
         result["untouched_only_b"] = untouched["only_b"]
-        keys_ok = bool(key_cols) and all(col in a_cols and col in b_cols for col in key_cols)
+
     if keys_ok:                                        # Spark must not repeat a key the legacy output doesn't
         dupes_a = set(index_by_key(rows_a, key_cols)["dupes"])
         result["dupes_only_b"] = [k for k in index_by_key(rows_b, key_cols)["dupes"] if k not in dupes_a]
