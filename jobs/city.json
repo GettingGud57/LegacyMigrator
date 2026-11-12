@@ -1,0 +1,29 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedCityData",
+  "staging_script": "scripts/load_city_staging.sql",
+  "tables": [
+    "Integration.City_Staging",
+    "Integration.Lineage",
+    "Integration.[ETL Cutoff]",
+    "Dimension.City"
+  ],
+  "holdout": {
+    "staging_vars": {"MonthsBack": 23}
+  },
+  "keys": {
+    "Integration.City_Staging": ["City Staging Key"],
+    "Integration.Lineage": ["Lineage Key"],
+    "Integration.ETL Cutoff": ["Table Name"],
+    "Dimension.City": ["City Key"]
+  },
+  "ignore": {
+    "Dimension.City": {
+      "City Key": "left out of the INSERT, so SQL Server fills it from a counter (NEXT VALUE FOR [Sequences].[CityKey]) that never rolls back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 45)"
+    }
+  }
+}

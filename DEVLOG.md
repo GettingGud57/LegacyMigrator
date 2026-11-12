@@ -80,7 +80,28 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - [x] Repo + SETUP.md (done 31 Oct)
 - [ ] `diff.py`, hand-written
   - [ ] Bookmarked (11 Nov): also compare column types, since today an int32 column that comes back as int64 with the same numbers still passes.
+  - [ ] Bookmarked (12 Nov, mutation test): ignored columns are dropped entirely, so a City translation that never fills in `Data Load Completed` still passes. Compare ignored columns as filled vs empty instead of skipping them.
+
+## 12 Nov: City passes, and a mutation test of the judge
+
+- `city`: PASS on attempt 1 (dev July 2015, 9,628 staged rows) and on the holdout (July 2014, 13,079 rows). One Claude call, $0.03.
+- Cities rarely change (shop DB changes only in Jan 2013, Jul 2013, Jul 2014, Jul 2015), so the City batches are those months, not the month before the last load.
+- Mutation test: 5 deliberately broken copies of `city.py`, judged on the dev data. Caught: does nothing, forgets the cutoff update, closes all versions instead of the current one. Not caught:
+  - MAX instead of MIN `Valid From`: every staged row in a batch has the same `Valid From`, so the data can't tell them apart. Needs a batch where cities change twice (a window covering Jul 2014 and Jul 2015 has 1,535 such cities).
+  - Never filling in `Data Load Completed`: the `diff.py` blind spot above.
+- Deck: "the judge caught 3 of 5 planted bugs; the 2 it missed showed exactly what to strengthen".
 - [ ] **6 Nov:** one job translated to PySpark and reconciled end to end. Miss → pull out, time goes to LeetCode
-- [ ] 10 Nov: holdout check + retry loop working, demo-able
+- [x] 10 Nov: holdout check + retry loop working, demo-able (done 12 Nov: `sale` passes the dev month, May 2016, and the holdout month, April 2016)
 - [ ] 12 Nov: deck, diagram, Responsible AI note, 3-min video drafted
 - [ ] 13 Nov: submitted
+
+## Bookmarked (12 Nov): making the tool work for more databases
+
+- Only `run_legacy.py` and `scripts/` are tied to SQL Server and WideWorldImporters.
+  `translate.py`, `run_spark.py`, `diff.py`, `cheat.py` and `loop.py` only read Parquet snapshots and `jobs/<job>.json`, so they work for any source once snapshots exist.
+- [x] (done 12 Nov) When adding City: move the job list (database, procedure, staging script, tables) out of `run_legacy.py` into each `jobs/<job>.json`, so a new job is a JSON file plus a staging script, with no Python edits.
+- Next-steps slide, not before submission: one capture adapter per source system (Oracle, SAS, ...) that writes the same `before/` and `after/` Parquet files, and the SQL dialect in the translator prompt as a setting instead of hard-coded "SQL Server".
+  Wait for City and Movement to show what really varies between jobs before generalising.
+- Deck wording: "Only one component touches the legacy system; everything else works on standard Parquet snapshots." Don't claim "handles many databases": only one database is tested.
+- Holdout split: by month, because these jobs process monthly batches (City and Movement use the same cutoff pattern).
+  Without dates: split by ID range or group, use a second copy of the database, or hand-made edge cases. Each batch always gets its own legacy run and answer key.

@@ -6,8 +6,12 @@
 
 SET NOCOUNT ON;
 
--- 1. Pick a time window: the month up to the warehouse's last load
-DECLARE @NewCutoff  datetime2(7) = (SELECT [Cutoff Time] FROM Integration.[ETL Cutoff] WHERE [Table Name] = N'Sale');
+-- 1. Pick a time window: one month, ending @MonthsBack months before the warehouse's last load.
+--    0 = the month up to the last load (the dev batch).
+--    run_legacy.py sets 1 for the holdout batch: the month before that, which the translator never sees.
+DECLARE @MonthsBack int = 0;
+DECLARE @LastLoad   datetime2(7) = (SELECT [Cutoff Time] FROM Integration.[ETL Cutoff] WHERE [Table Name] = N'Sale');
+DECLARE @NewCutoff  datetime2(7) = DATEADD(month, -@MonthsBack, @LastLoad);
 DECLARE @LastCutoff datetime2(7) = DATEADD(month, -1, @NewCutoff);
 
 -- 2. Clear staging (in-memory tables don't allow TRUNCATE)

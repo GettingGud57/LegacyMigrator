@@ -8,11 +8,16 @@ run_legacy.py: run one legacy job on SQL Server and save the tables it touches.
 The job runs inside a transaction that gets rolled back at the end,
 so the database is left exactly as it was and this can be rerun any time.
 
+Each job is described in jobs/<job>.json: its database, procedure, staging script and tables,
+plus an optional "holdout" section that changes how staging is loaded for the holdout batch.
+
 Usage (from the repo root):
-    python migrator/run_legacy.py sale
+    python migrator/run_legacy.py sale            the dev batch, saved to snapshots/sale/
+    python migrator/run_legacy.py sale_holdout    the holdout batch, saved to snapshots/sale_holdout/
 """
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -22,24 +27,25 @@ import pyarrow.parquet as pq
 import pyodbc
 from dotenv import load_dotenv
 
-# One entry per legacy job. "tables" = everything the job reads or writes.
-JOBS = {
-    "sale": {
-        "database": "WideWorldImportersDW",
-        "staging_script": "scripts/load_sale_staging.sql",
-        "proc": "Integration.MigrateStagedSaleData",
-        "tables": [
-            "Integration.Sale_Staging",
-            "Integration.Lineage",
-            "Integration.[ETL Cutoff]",
-            "Dimension.City",
-            "Dimension.Customer",
-            "Dimension.[Stock Item]",
-            "Dimension.Employee",
-            "Fact.Sale",
-        ],
-    },
-}
+HOLDOUT_SUFFIX = "_holdout"
+
+
+def load_job(name):
+    """The job spec for a snapshot name: "<job>" is the dev batch, "<job>_holdout" the holdout batch.
+
+    The holdout is the same job on different input. The translator never sees it:
+    loop.py --holdout runs the final translation on it once and shows the verdict to humans only.
+    """
+    job_name = name.removesuffix(HOLDOUT_SUFFIX)
+    path = Path("jobs") / f"{job_name}.json"
+    if not path.exists():
+        raise SystemExit(f"No job spec at {path}")
+    job = json.loads(path.read_text())
+    if name != job_name:
+        if "holdout" not in job:
+            raise SystemExit(f"{path} has no \"holdout\" section, so there is no {name} batch")
+        job = {**job, **job["holdout"]}  # e.g. a different staging script or staging_vars
+    return job
 
 # pyodbc can't read map columns (geography/geometry), so read them as text instead
 SPATIAL_TYPES = {"geography", "geometry"}
@@ -59,9 +65,17 @@ def connect(database):
     return conn.cursor()
 
 
-def run_script(cur, path):
-    """Run a .sql file and print its last result set."""
-    cur.execute(Path(path).read_text(encoding="utf-8-sig"))
+def run_script(cur, path, variables=None):
+    """Run a .sql file and print its last result set.
+
+    variables: {name: int} replaces the default in the script's `DECLARE @name int = <default>;` line.
+    """
+    sql = Path(path).read_text(encoding="utf-8-sig")
+    for name, value in (variables or {}).items():
+        sql, found = re.subn(rf"DECLARE @{name} int = -?\d+;", f"DECLARE @{name} int = {int(value)};", sql)
+        if found != 1:
+            raise SystemExit(f"{path}: expected one 'DECLARE @{name} int = ...;' line, found {found}")
+    cur.execute(sql)
     last = None
     while True:
         if cur.description:
@@ -113,15 +127,17 @@ def snapshot(cur, tables, folder):
 
 
 def main():
-    job_name = sys.argv[1] if len(sys.argv) > 1 else "sale"
-    job = JOBS[job_name]
+    if len(sys.argv) != 2:
+        raise SystemExit(__doc__)
+    job_name = sys.argv[1]
+    job = load_job(job_name)
     out = Path("snapshots") / job_name
     cur = connect(job["database"])
 
     # Outside the transaction: SQL Server won't let one transaction touch an
     # in-memory table and a second database, and this script reads the shop database.
     print("1. Loading staging")
-    run_script(cur, job["staging_script"])
+    run_script(cur, job["staging_script"], job.get("staging_vars"))
 
     print("2. Running the legacy job inside a transaction")
     cur.execute("BEGIN TRAN")

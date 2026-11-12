@@ -1,5 +1,21 @@
 {
   "legacy_sql": "legacy_jobs/wwi/MigrateStagedSaleData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedSaleData",
+  "staging_script": "scripts/load_sale_staging.sql",
+  "tables": [
+    "Integration.Sale_Staging",
+    "Integration.Lineage",
+    "Integration.[ETL Cutoff]",
+    "Dimension.City",
+    "Dimension.Customer",
+    "Dimension.[Stock Item]",
+    "Dimension.Employee",
+    "Fact.Sale"
+  ],
+  "holdout": {
+    "staging_vars": {"MonthsBack": 1}
+  },
   "keys": {
     "Integration.Sale_Staging": ["Sale Staging Key"],
     "Integration.Lineage": ["Lineage Key"],
