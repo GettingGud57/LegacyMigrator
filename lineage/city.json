@@ -1,0 +1,325 @@
+{
+  "job": "city",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedCityData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:14:40",
+  "tables": {
+    "Dimension.City": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "City Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            33,
+            34
+          ],
+          "note": "Omitted from the INSERT column list, so the database fills it (identity)."
+        },
+        "WWI City ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "WWI City ID"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "City": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "City"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": ""
+        },
+        "State Province": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "State Province"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": ""
+        },
+        "Country": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Country"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": ""
+        },
+        "Continent": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Continent"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": ""
+        },
+        "Sales Territory": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Sales Territory"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": ""
+        },
+        "Region": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Region"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": ""
+        },
+        "Subregion": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Subregion"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": ""
+        },
+        "Location": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Location"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": ""
+        },
+        "Latest Recorded Population": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Latest Recorded Population"
+            }
+          ],
+          "lines": [
+            36,
+            40
+          ],
+          "note": ""
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            36,
+            40
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.City_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.City_Staging",
+              "column": "WWI City ID"
+            },
+            {
+              "table": "Integration.City_Staging",
+              "column": "Valid To"
+            }
+          ],
+          "lines": [
+            22,
+            24,
+            27,
+            29,
+            30,
+            36,
+            40
+          ],
+          "note": "The UPDATE closes open rows with the minimum staging Valid From per city. The INSERT copies staging Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            13,
+            14,
+            15,
+            16,
+            17,
+            37,
+            41
+          ],
+          "note": "Latest open Lineage row for City, held in @LineageKey and inserted as a constant per row."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            45
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            46
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            50,
+            51,
+            52,
+            54
+          ],
+          "note": "Subquery returns the cutoff time from the Lineage row matching @LineageKey."
+        }
+      }
+    }
+  },
+  "columns_mapped": 22,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.City.City Key: ignored in jobs/city.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/city.json, and the map says generated",
+      "Dimension.City: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: changed by the legacy job, and in the map",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}
