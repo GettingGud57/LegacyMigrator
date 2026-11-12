@@ -80,7 +80,7 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - [x] Repo + SETUP.md (done 31 Oct)
 - [ ] `diff.py`, hand-written
   - [ ] Bookmarked (11 Nov): also compare column types, since today an int32 column that comes back as int64 with the same numbers still passes.
-  - [ ] Bookmarked (12 Nov, mutation test): ignored columns are dropped entirely, so a City translation that never fills in `Data Load Completed` still passes. Compare ignored columns as filled vs empty instead of skipping them.
+  - [x] (done 12 Nov) Bookmarked (12 Nov, mutation test): ignored columns are dropped entirely, so a City translation that never fills in `Data Load Completed` still passes. Compare ignored columns as filled vs empty instead of skipping them.
 
 ## 12 Nov: City passes, and a mutation test of the judge
 
@@ -103,6 +103,14 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - `claim` and `premium`: PASS on attempt 1 and on the holdout. About $0.045 per translation.
 - Mutation test, 9 broken copies on the dev data, all caught: does nothing (x2), boundary flipped to `>=` / `<` (x2), missing member as NULL instead of 0 (x2), forgets the delete, net = gross - tax, banker's rounding.
   Running total: 13 of 14 planted bugs caught; the miss is the ignored-column blind spot in `diff.py`.
+
+## 12 Nov evening: stricter judge, 14 of 14
+
+- `diff.py` now masks ignored columns (a filled value becomes a "present" marker instead of being dropped), checks that rows the legacy job left alone come out of Spark identical, and flags keys Spark repeats that the legacy output doesn't. `loop.py` passes the `before/` snapshot in.
+- All 9 batches re-run with the current translations and the new judge: all PASS.
+- City mutant 5 (never fills `Data Load Completed`) is now caught in `Integration.Lineage`. The new judge is strictly stricter, so the other 13 stay caught: 14 of 14.
+- `loop.py` after a failure (12 Nov evening): attempts run from `snapshots/<job>/loop/attempt_N.py`, and only a translation that passed dev and its holdout replaces `jobs_pyspark/<job>.py`. The holdout is skipped after a dev FAIL. A failed run prints and saves `summary.txt`: each attempt's outcome (crashed, rejected by cheat.py, timed out, or FAIL in which tables), where the evidence is, the state of `jobs_pyspark/<job>.py`, and next steps. A holdout FAIL after a dev PASS gets its own message and `holdout_report.txt`, with a warning never to feed it to the translator. Tested end to end on City with deliberately broken code.
+- [x] (done 12 Nov) Fix: `keys_ok` is set only inside `if before_rows is not None:`, so `reconcile()` without `before_rows` (diff.py's own `__main__`) raises `UnboundLocalError`. Move it above that `if`.
 - [ ] Bookmarked: `run_legacy.py` lets Arrow infer snapshot types from the values (SQL `int` becomes int64, `decimal(18,2)` becomes `decimal(7,2)` sized to the batch), so a type check in `diff.py` would compare against guessed types. Build the snapshot schema from `sys.columns` first; needs every snapshot regenerated and every loop re-run.
 - [ ] **6 Nov:** one job translated to PySpark and reconciled end to end. Miss → pull out, time goes to LeetCode
 - [x] 10 Nov: holdout check + retry loop working, demo-able (done 12 Nov: `sale` passes the dev month, May 2016, and the holdout month, April 2016)

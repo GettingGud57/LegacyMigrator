@@ -2,19 +2,23 @@
 loop.py: translate a legacy job, run it, judge it, and retry with feedback until it passes.
 
     for attempt in 1..N:
-        1. translate   -> jobs_pyspark/<job>.py      (translate.py, one Claude call)
-        2. run it      -> snapshots/<job>/spark/     (run_spark.py, in its own process)
+        1. translate   -> snapshots/<job>/loop/attempt_N.py   (translate.py, one Claude call)
+        2. run it      -> snapshots/<job>/spark/              (run_spark.py, in its own process)
              crashed or rejected?  feedback = the error, next attempt
-        3. judge       -> PASS or FAIL               (diff.reconcile, legacy after vs spark)
+        3. judge       -> PASS or FAIL                        (diff.reconcile, legacy after vs spark)
              PASS?  stop
              FAIL?  feedback = the diff report, next attempt
-    afterwards (--holdout): run the final job once on the holdout and show the result
-    to humans only. Holdout results never go back to the translator.
+    afterwards (--holdout): if the dev batch passed, run that code once on the holdout and show the
+    result to humans only. Holdout results never go back to the translator.
+
+Only a translation that passed everything it was checked on replaces jobs_pyspark/<job>.py,
+so a failed run never overwrites one that worked.
 
 loop.py never decides PASS or FAIL itself: every verdict comes from diff.reconcile.
 Which columns are keys and which are ignored comes from jobs/<job>.json, chosen by a human.
 
-Every attempt's code and feedback from the latest run is kept in snapshots/<job>/loop/.
+Every attempt's code and feedback from the latest run is kept in snapshots/<job>/loop/,
+with summary.txt saying what happened and what to do next.
 
 Usage (from the repo root):
     python migrator/loop.py sale
@@ -60,8 +64,8 @@ def run_spark(job, job_path):
     return error[-MAX_ERROR_CHARS:]  # the end of a traceback is the useful part
 
 
-def judge(job, spec):
-    """Every table in snapshots/<job>/after/ through diff.reconcile. Gives back (passed, report).
+def judge_tables(job, spec):
+    """Every table in snapshots/<job>/after/ through diff.reconcile. Gives back (failed tables, report).
 
     The before/ snapshot goes in too, so diff can check that rows the legacy job
     left alone also come out of Spark unchanged.
@@ -73,13 +77,13 @@ def judge(job, spec):
     if not tables:
         sys.exit(f"No legacy output in {after_dir}/. Run: python migrator/run_legacy.py {job}")
 
-    passed = True
+    failed = []
     report = []
     for f in tables:
         name = f.stem
         spark_file = spark_dir / f.name
         if not spark_file.exists():
-            passed = False
+            failed.append(name)
             report.append(f"=== {name}: FAIL, the job produced no output for this table")
             continue
         result = diff.reconcile(
@@ -90,35 +94,91 @@ def judge(job, spec):
             before_rows=diff.load(before_dir / f.name),
         )
         if result["status"] != "pass":
-            passed = False
+            failed.append(name)
             text = io.StringIO()
             with contextlib.redirect_stdout(text):
                 diff.print_verdict(result)
             report.append(f"=== {name} (A = legacy output, B = your output)\n{text.getvalue()}")
-    return passed, "\n".join(report)
+    return failed, "\n".join(report)
 
 
-def print_table_verdicts(job, spec):
-    passed, report = judge(job, spec)
-    print("   PASS" if passed else "   FAIL")
-    if report:
-        print(report)
-    return passed
+def judge(job, spec):
+    """Like judge_tables, but gives back (passed, report)."""
+    failed, report = judge_tables(job, spec)
+    return not failed, report
+
+
+def describe_error(error):
+    """One line for the summary: what kind of failure it was, and the error's last line."""
+    if "Job rejected before running" in error:
+        kind = "rejected by cheat.py"
+    elif "did not finish within" in error:
+        kind = "timed out"
+    else:
+        kind = "crashed"
+    last_line = next((line.strip() for line in reversed(error.splitlines()) if line.strip()), "")
+    return f"{kind}: {last_line[:160]}"
+
+
+def failure_summary(job, history, log_dir, job_path, had_job_file):
+    """What a developer needs after a failed run: what happened, where the evidence is, what next."""
+    attempts_run = len(history)
+    if had_job_file:
+        kept = f"{job_path}: unchanged. A failed attempt never overwrites it."
+    else:
+        kept = f"{job_path}: not created, because no attempt passed."
+    return "\n".join([
+        f"{job}: FAIL after {attempts_run} attempt(s). Nothing was marked as migrated.",
+        "",
+        "What happened:",
+        *[f"   {line}" for line in history],
+        "",
+        f"Evidence, in {log_dir}/:",
+        "   attempt_N.py     the code each attempt ran",
+        "   feedback_N.txt   the error or diff report each attempt got back",
+        "",
+        kept,
+        "",
+        "Next steps:",
+        f"   1. Read the last report: {log_dir / f'feedback_{attempts_run}.txt'}",
+        f"   2. Try more attempts: python migrator/loop.py {job} --attempts 5",
+        f"   3. Or fix it by hand: copy the closest attempt to {job_path}, edit it, then judge it with",
+        f"      python migrator/loop.py {job} --from-existing --attempts 1",
+    ])
+
+
+def holdout_failure_summary(job, holdout, attempt_path, log_dir, job_path):
+    """The dev batch passed but the holdout didn't: the translation fits the dev data, not the logic."""
+    return "\n".join([
+        f"{job}: FAIL on the holdout {holdout}. It passed the dev batch, but not data it never saw,",
+        "so treat it as not migrated.",
+        "",
+        f"Holdout report: above, and in {log_dir / 'holdout_report.txt'} (for humans only).",
+        "Never paste it into a translation prompt: the holdout only stays blind if the AI never sees it.",
+        f"The code that passed dev: {attempt_path}. {job_path} was left unchanged.",
+        "",
+        "Next steps:",
+        "   1. Read the holdout report to see which case the dev batch didn't cover.",
+        "   2. Fix the translation by hand, or add that case to a new dev batch and pick a new holdout.",
+    ])
 
 
 def run(job, attempts=3, holdout=None, from_existing=False, model=translate.DEFAULT_MODEL):
     spec = load_spec(job)
     job_path = Path("jobs_pyspark") / f"{job}.py"
+    had_job_file = job_path.exists()
     log_dir = Path("snapshots") / job / "loop"
     shutil.rmtree(log_dir, ignore_errors=True)  # history of this run only, no leftovers
     log_dir.mkdir(parents=True)
 
     passed = False
     feedback = None
+    history = []  # one line per attempt, for the summary
     for attempt in range(1, attempts + 1):
         print(f"\n=== attempt {attempt} of {attempts} ===")
+        attempt_path = log_dir / f"attempt_{attempt}.py"
 
-        if attempt == 1 and from_existing and job_path.exists():
+        if attempt == 1 and from_existing and had_job_file:
             print(f"1. Using existing {job_path}")
             code = job_path.read_text()
         else:
@@ -128,40 +188,69 @@ def run(job, attempts=3, holdout=None, from_existing=False, model=translate.DEFA
             except translate.TranslationError as e:
                 # Not the translation's fault (API down, key missing, ...): retrying won't help
                 sys.exit(f"Translation failed: {e}")
-            job_path.write_text(code)
-        (log_dir / f"attempt_{attempt}.py").write_text(code)
+        attempt_path.write_text(code)
 
-        print(f"2. Running {job_path} on snapshots/{job}/before/")
-        error = run_spark(job, job_path)
+        # Each attempt runs from snapshots/<job>/loop/, so jobs_pyspark/<job>.py is only
+        # replaced once a translation has passed (below).
+        print(f"2. Running {attempt_path} on snapshots/{job}/before/")
+        error = run_spark(job, attempt_path)
         if error:
             print("   crashed or rejected:\n" + error)
+            history.append(f"attempt {attempt}: {describe_error(error)}")
             problem = f"Running it failed with this error:\n{error}"
         else:
             print(f"3. Judging snapshots/{job}/spark/ against snapshots/{job}/after/")
-            passed, report = judge(job, spec)
-            if passed:
+            failed, report = judge_tables(job, spec)
+            if not failed:
+                passed = True
+                history.append(f"attempt {attempt}: PASS")
                 print("   PASS: every table matches the legacy output")
                 break
+            history.append(f"attempt {attempt}: FAIL in {', '.join(failed)}")
             print("   FAIL\n" + report)
             problem = f"Comparing its output with the legacy output found these differences:\n{report}"
 
         feedback = f"Your previous translation:\n```\n{code}```\n\n{problem}"
         (log_dir / f"feedback_{attempt}.txt").write_text(feedback)
 
-    print(f"\n{job}: {'PASS' if passed else 'FAIL'} after {attempt} attempt(s). Final code: {job_path}")
+    if not passed:
+        summary = failure_summary(job, history, log_dir, job_path, had_job_file)
+        if holdout:
+            summary += f"\n\nHoldout {holdout}: skipped, because the translation didn't pass the dev batch."
+        print("\n" + summary)
+        (log_dir / "summary.txt").write_text(summary + "\n")
+        return False
+
+    print(f"\n{job}: PASS after {attempt} attempt(s).")
+    summary = [f"{job}: PASS after {attempt} attempt(s).", *history]
 
     if holdout:
         # Shown to humans only. Nothing from here is ever passed to translate.
-        print(f"\n=== holdout: {job_path} on snapshots/{holdout}/ (never shown to the translator) ===")
-        error = run_spark(holdout, job_path)
+        print(f"\n=== holdout: {attempt_path} on snapshots/{holdout}/ (never shown to the translator) ===")
+        error = run_spark(holdout, attempt_path)
         if error:
             print("   crashed or rejected:\n" + error)
-            holdout_passed = False
+            holdout_failed, holdout_report = True, error
         else:
-            holdout_passed = print_table_verdicts(holdout, spec)
-        passed = passed and holdout_passed
+            failed, holdout_report = judge_tables(holdout, spec)
+            holdout_failed = bool(failed)
+            print("   FAIL" if holdout_failed else "   PASS")
+            if holdout_report:
+                print(holdout_report)
+        if holdout_failed:
+            (log_dir / "holdout_report.txt").write_text(holdout_report + "\n")
+            text = holdout_failure_summary(job, holdout, attempt_path, log_dir, job_path)
+            print("\n" + text)
+            (log_dir / "summary.txt").write_text("\n".join(summary) + "\n\n" + text + "\n")
+            return False
+        summary.append(f"holdout {holdout}: PASS")
 
-    return passed
+    if not job_path.exists() or job_path.read_text() != code:
+        job_path.write_text(code)
+    print(f"Final code: {job_path}")
+    summary.append(f"Final code: {job_path}")
+    (log_dir / "summary.txt").write_text("\n".join(summary) + "\n")
+    return True
 
 
 def main():
@@ -173,6 +262,8 @@ def main():
                         help="judge the current jobs_pyspark/<job>.py as attempt 1 instead of translating")
     parser.add_argument("--model", default=translate.DEFAULT_MODEL, choices=sorted(translate.PRICES))
     args = parser.parse_args()
+    if args.attempts < 1:
+        parser.error("--attempts must be at least 1")
     # Keep progress lines in order with translate.py's stderr cost line, also when piped to a log
     sys.stdout.reconfigure(line_buffering=True)
     passed = run(args.job, args.attempts, args.holdout, args.from_existing, args.model)

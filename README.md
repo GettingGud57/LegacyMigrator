@@ -20,7 +20,7 @@ An unseen holdout dataset can check for data-specific overfitting.
 - `MigrateStagedCityData` (Microsoft), a history table: dev July 2015, holdout July 2014, plus a 13-month batch in which 1,535 cities changed twice.
 - `MigrateStagedClaimData` and `MigrateStagedPremiumData` (insurance test jobs on synthetic data, with planted edge cases): dev June 2025, holdout September 2025.
 
-To check that a PASS means something, we also break translations on purpose: the judge caught 13 of 14 planted bugs, and the one it missed is a known gap in how it treats ignored columns.
+To check that a PASS means something, we also break translations on purpose: the judge catches all 14 planted bugs.
 
 ## How it works
 
@@ -125,8 +125,10 @@ The other jobs are `city`, `claim` and `premium`, each with a `<job>_holdout` ba
    ```
    python migrator/loop.py sale
    ```
-   Success: the last line is `sale: PASS after 1 attempt(s). Final code: jobs_pyspark/sale.py`.
+   Success: `sale: PASS after 1 attempt(s).`, then `Final code: jobs_pyspark/sale.py` as the last line.
    The number of attempts can vary between runs, because the AI doesn't write the same code every time.
+   If every attempt fails, the loop prints what happened in each attempt, where the evidence is and what to try next, and saves that to `snapshots/sale/loop/summary.txt`.
+   A failed run never overwrites a translation that passed.
 3. Optional: check the final translation on a holdout month the translator never sees.
    The first command needs SQL Server running, the second doesn't:
    ```
