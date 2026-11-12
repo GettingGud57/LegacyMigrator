@@ -1,0 +1,58 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedMovementData",
+  "staging_script": "scripts/load_movement_staging.sql",
+  "tables": [
+    "Integration.[Movement_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Customer]",
+    "Dimension.[Stock Item]",
+    "Dimension.[Supplier]",
+    "Dimension.[Transaction Type]",
+    "Fact.[Movement]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 1",
+      "staging_vars": {
+        "MonthsBack": 1
+      }
+    }
+  },
+  "keys": {
+    "Integration.Movement_Staging": [
+      "Movement Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Customer": [
+      "Customer Key"
+    ],
+    "Dimension.Stock Item": [
+      "Stock Item Key"
+    ],
+    "Dimension.Supplier": [
+      "Supplier Key"
+    ],
+    "Dimension.Transaction Type": [
+      "Transaction Type Key"
+    ],
+    "Fact.Movement": [
+      "WWI Stock Item Transaction ID"
+    ]
+  },
+  "ignore": {
+    "Fact.Movement": {
+      "Movement Key": "IDENTITY column left out of the MERGE's INSERT (line 62), so SQL Server numbers new rows itself and never rolls the counter back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 68)"
+    }
+  }
+}

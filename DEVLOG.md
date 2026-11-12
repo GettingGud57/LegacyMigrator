@@ -117,6 +117,27 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - [ ] 12 Nov: deck, diagram, Responsible AI note, 3-min video drafted
 - [ ] 13 Nov: submitted
 
+## 12 Nov night: all 13 Microsoft jobs, 15 of 15 pass
+
+- `scripts/make_wwi_jobs.py` set up the 11 remaining WideWorldImporters jobs: it exports each `MigrateStaged...Data` procedure into `legacy_jobs/wwi/`, generates its staging loader from the database's own column lists, and writes `jobs/<job>.json` with empty keys and ignores.
+  Microsoft's staging table misspells one Movement column (`Last Modifed When`), so the loader renames it.
+- Batches: Movement, Order, Purchase and Transaction use the last month as dev and the month before as holdout.
+  Employee, Stock Item, Supplier, Transaction Type and Payment Method use months with changes in the shop database.
+  Customer and Stock Holding have only one batch of data, so they are split by ID: even IDs are dev, odd IDs are the holdout.
+- Small tables give small holdouts: Supplier and Payment Method have 1 staged row, Transaction Type 2, Employee 7.
+- `scripts/column_evidence.py <job>` prints the evidence for keys and ignores: clock columns with their line numbers, counter columns (IDENTITY or a sequence) the SQL never writes, and which tables changed.
+  Every job has the same two: `Data Load Completed` (the clock) and the main table's own ID counter.
+- Him approved the rule for all 11 (ignore the clock and the counter, nothing else) and picked `WWI Stock Item Transaction ID` as Movement's key; Claude Code wrote the reasons into the job files.
+  Stock Holding's key is `Stock Item Key` (one row per product); its counter `Stock Holding Key` is ignored with its own reason: `TRUNCATE` restarts it at 1, but the insert has no `ORDER BY`, so which row gets which number is undefined.
+- All 11 PASS on attempt 1, dev and holdout, $0.38 for the 11 translations ($0.028 to $0.051 each).
+  A translation that changes nothing fails every one of the 22 batches, so each PASS reproduced real changes.
+- Mutation test on the two new kinds of job, 8 broken copies, all caught on dev and on the holdout.
+  Movement (`MERGE`): no update branch, inserts rows that already exist, update keeps the old lineage key, staging keys never written back.
+  Stock Holding (empty and reload): forgets the `TRUNCATE`, looks up the oldest stock item version, swaps two quantity columns, never marks the load successful.
+  Running total: 22 of 22.
+- The 15 jobs follow four patterns: history tables (7), fact loads (4), a `MERGE` (Movement) and an empty-and-reload (Stock Holding).
+  13 of the 15 share Microsoft's template, and the deck's limits slide says so.
+
 ## Bookmarked (12 Nov): making the tool work for more databases
 
 - Only `run_legacy.py` and `scripts/` are tied to SQL Server and WideWorldImporters.

@@ -1,0 +1,42 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedStockItemData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedStockItemData",
+  "staging_script": "scripts/load_stock_item_staging.sql",
+  "tables": [
+    "Integration.[StockItem_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Stock Item]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 41",
+      "staging_vars": {
+        "MonthsBack": 41
+      }
+    }
+  },
+  "keys": {
+    "Integration.StockItem_Staging": [
+      "Stock Item Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Stock Item": [
+      "Stock Item Key"
+    ]
+  },
+  "ignore": {
+    "Dimension.Stock Item": {
+      "Stock Item Key": "left out of the INSERT, so SQL Server fills it from a counter (NEXT VALUE FOR [Sequences].[StockItemKey]) that never rolls back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 45)"
+    }
+  }
+}

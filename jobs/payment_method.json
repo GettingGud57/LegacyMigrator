@@ -1,0 +1,42 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedPaymentMethodData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedPaymentMethodData",
+  "staging_script": "scripts/load_payment_method_staging.sql",
+  "tables": [
+    "Integration.[PaymentMethod_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Payment Method]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 5",
+      "staging_vars": {
+        "MonthsBack": 5
+      }
+    }
+  },
+  "keys": {
+    "Integration.PaymentMethod_Staging": [
+      "Payment Method Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Payment Method": [
+      "Payment Method Key"
+    ]
+  },
+  "ignore": {
+    "Dimension.Payment Method": {
+      "Payment Method Key": "left out of the INSERT, so SQL Server fills it from a counter (NEXT VALUE FOR [Sequences].[PaymentMethodKey]) that never rolls back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 39)"
+    }
+  }
+}

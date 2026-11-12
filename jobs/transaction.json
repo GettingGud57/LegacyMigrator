@@ -1,0 +1,58 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedTransactionData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedTransactionData",
+  "staging_script": "scripts/load_transaction_staging.sql",
+  "tables": [
+    "Integration.[Transaction_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Customer]",
+    "Dimension.[Payment Method]",
+    "Dimension.[Supplier]",
+    "Dimension.[Transaction Type]",
+    "Fact.[Transaction]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 1",
+      "staging_vars": {
+        "MonthsBack": 1
+      }
+    }
+  },
+  "keys": {
+    "Integration.Transaction_Staging": [
+      "Transaction Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Customer": [
+      "Customer Key"
+    ],
+    "Dimension.Payment Method": [
+      "Payment Method Key"
+    ],
+    "Dimension.Supplier": [
+      "Supplier Key"
+    ],
+    "Dimension.Transaction Type": [
+      "Transaction Type Key"
+    ],
+    "Fact.Transaction": [
+      "Transaction Key"
+    ]
+  },
+  "ignore": {
+    "Fact.Transaction": {
+      "Transaction Key": "IDENTITY column left out of the INSERT, so SQL Server numbers new rows itself and never rolls the counter back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 65)"
+    }
+  }
+}
