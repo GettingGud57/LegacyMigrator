@@ -13,8 +13,11 @@
     "Dimension.Employee",
     "Fact.Sale"
   ],
-  "holdout": {
-    "staging_vars": {"MonthsBack": 1}
+  "batches": {
+    "holdout": {
+      "note": "April 2016",
+      "staging_vars": {"MonthsBack": 1}
+    }
   },
   "keys": {
     "Integration.Sale_Staging": ["Sale Staging Key"],

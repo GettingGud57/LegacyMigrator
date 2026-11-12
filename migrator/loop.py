@@ -61,7 +61,12 @@ def run_spark(job, job_path):
 
 
 def judge(job, spec):
-    """Every table in snapshots/<job>/after/ through diff.reconcile. Gives back (passed, report)."""
+    """Every table in snapshots/<job>/after/ through diff.reconcile. Gives back (passed, report).
+
+    The before/ snapshot goes in too, so diff can check that rows the legacy job
+    left alone also come out of Spark unchanged.
+    """
+    before_dir = Path("snapshots") / job / "before"
     after_dir = Path("snapshots") / job / "after"
     spark_dir = Path("snapshots") / job / "spark"
     tables = sorted(after_dir.glob("*.parquet"))
@@ -82,6 +87,7 @@ def judge(job, spec):
             diff.load(spark_file),
             spec["keys"].get(name),
             list(spec.get("ignore", {}).get(name, {})),
+            before_rows=diff.load(before_dir / f.name),
         )
         if result["status"] != "pass":
             passed = False

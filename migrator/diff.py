@@ -116,23 +116,68 @@ def report(result, limit=10):
     show("WARNING columns only in A", result["cols_only_a"], limit)
     show("WARNING columns only in B", result["cols_only_b"], limit)
 
+def mask(rows, cols):
+    if not cols :
+        return rows
+    out = []
+    for row in rows:
+        copy = (dict(row))
+        for  col in cols:
+             if copy.get(col) is not None:
+                copy[col] = PRESENT
+        out.append(copy)
+    return out
 
-def reconcile(rows_a, rows_b, key_cols=None, ignore_cols=()):
+
+
+def unchanged(rows, before_rows):
+    if not rows or not before_rows:  # if there are no rows or before_rows, return an empty list
+        return []
+    cols = sorted(rows[0])                            # the column names
+    left = Counter(tuple(row.get(col) for col in cols) for row in before_rows)  # count rows in before_rows
+    kept = []
+    for row in rows:
+        t = tuple(row.get(col) for col in cols)        # same way as above
+        if left[t] > 0:                                # this exact row was in before
+            left[t] = left[t] - 1                      # use it up, so duplicate rows count right
+            kept.append(row)                           # add row to kept
+    return kept
+
+def reconcile(rows_a, rows_b, key_cols=None, ignore_cols=(), before_rows=None):
     """compare_rows decides PASS/FAIL. diff only explains a FAIL."""
     ignore = set(ignore_cols)
     a_cols = set(rows_a[0]) if rows_a else set()
     b_cols = set(rows_b[0]) if rows_b else set()
-    cols = sorted((a_cols & b_cols) - ignore)            # same column order for A and B
-    result = compare_rows(rows_a, rows_b, cols)          # whole rows with no exact match
-    result["cols_only_a"] = sorted(a_cols - b_cols - ignore)
-    result["cols_only_b"] = sorted(b_cols - a_cols - ignore)
+    cols = sorted(a_cols & b_cols)             # same column order for A and B
+    result = compare_rows(mask(rows_a, ignore), mask(rows_b, ignore), cols)         # whole rows with no exact match
+    result["cols_only_a"] = sorted(a_cols - b_cols )
+    result["cols_only_b"] = sorted(b_cols - a_cols )
+    
+    if before_rows is not None:                       # rows the legacy job left alone must stay exactly the same
+        untouched = compare_rows(unchanged(rows_a, before_rows), unchanged(rows_b, before_rows), cols)
+        result["untouched_only_a"] = untouched["only_a"]
+        result["untouched_only_b"] = untouched["only_b"]
+        keys_ok = bool(key_cols) and all(col in a_cols and col in b_cols for col in key_cols)
+    if keys_ok:                                        # Spark must not repeat a key the legacy output doesn't
+        dupes_a = set(index_by_key(rows_a, key_cols)["dupes"])
+        result["dupes_only_b"] = [k for k in index_by_key(rows_b, key_cols)["dupes"] if k not in dupes_a]
+
+    
+    
+    
+    
+    
     passed = not any(result.values())                    # PASS only if all four lists are empty
     result.update(status="pass" if passed else "fail", compared_cols=cols, explanation=None)
-    if not passed and key_cols:
+    if not passed and keys_ok:
+
         ex = diff(rows_a, rows_b, key_cols, ignore_cols)
         dupes = set(ex["dupes_a"] + ex["dupes_b"])       # changes on duplicate keys are guesses
         ex["changed"] = [c for c in ex["changed"] if c["key"] not in dupes]
         result["explanation"] = ex
+        if (result.get("untouched_only_a") or result.get("untouched_only_b")) and keys_ok:
+            ux = diff(unchanged(rows_a, before_rows), rows_b, key_cols)   # nothing ignored: these rows must match exactly
+            result["untouched_explanation"] = ux["changed"]
     return result
 
 
@@ -142,6 +187,16 @@ def print_verdict(result, limit=10):
           f"{len(result['only_b'])} in B have no identical twin "
           f"({len(result['compared_cols'])} columns compared)")
     
+    show("rows A left alone but B changed", result.get("untouched_only_a", []), limit)
+    show("rows B left alone but A changed", result.get("untouched_only_b", []), limit)
+    show("keys repeated in B but not in A", result.get("dupes_only_b", []), limit)
+    changed = result.get("untouched_explanation", [])
+    if changed:
+        changed = sorted(changed, key=lambda c: (str(c["key"]), c["col"]))
+        print(f"  cells B changed in rows A left alone ({len(changed)}):")
+        for c in changed[:limit]:
+            print(f"    {c['key']}  {c['col']}  {c['a']!r} -> {c['b']!r}")
+
 
     ex = result["explanation"]
     if ex:

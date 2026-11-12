@@ -90,6 +90,20 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
   - MAX instead of MIN `Valid From`: every staged row in a batch has the same `Valid From`, so the data can't tell them apart. Needs a batch where cities change twice (a window covering Jul 2014 and Jul 2015 has 1,535 such cities).
   - Never filling in `Data Load Completed`: the `diff.py` blind spot above.
 - Deck: "the judge caught 3 of 5 planted bugs; the 2 it missed showed exactly what to strengthen".
+- Data gap closed the same day: new batch `city_twice` (June 2014 to July 2015, 22,707 staged rows, 1,535 cities with two different `Valid From` dates).
+  The real `city.py` passes it; the MAX mutant now fails on 1,536 rows of `Dimension.City`. So 4 of 5 planted bugs are caught; the last one needs the `diff.py` fix.
+- Jobs can now list any number of extra batches under `"batches"` in `jobs/<job>.json`; `run_legacy.py <job>_<batch>` snapshots one.
+
+## 12 Nov: insurance jobs pass
+
+- Teammate delivered two synthetic databases (`InsuranceOps` source, `InsuranceDW` warehouse, WideWorldImporters style), dev and holdout loaders, and the procedures `MigrateStagedClaimData` and `MigrateStagedPremiumData`.
+  Installed in `scripts/insurance/` and `legacy_jobs/insurance/`. Their files reference `run_legacy.py`, so they were not written blind: never claim they were.
+- Dev window June 2025 (135 claim lines, 188 premium transactions), holdout September 2025 (103, 215).
+  Planted edge cases: claims edited at the exact second their customer or policy changed, a policy, customer and agent missing from the warehouse, a claim with no adjuster, 7-digit timestamps.
+- `claim` and `premium`: PASS on attempt 1 and on the holdout. About $0.045 per translation.
+- Mutation test, 9 broken copies on the dev data, all caught: does nothing (x2), boundary flipped to `>=` / `<` (x2), missing member as NULL instead of 0 (x2), forgets the delete, net = gross - tax, banker's rounding.
+  Running total: 13 of 14 planted bugs caught; the miss is the ignored-column blind spot in `diff.py`.
+- [ ] Bookmarked: `run_legacy.py` lets Arrow infer snapshot types from the values (SQL `int` becomes int64, `decimal(18,2)` becomes `decimal(7,2)` sized to the batch), so a type check in `diff.py` would compare against guessed types. Build the snapshot schema from `sys.columns` first; needs every snapshot regenerated and every loop re-run.
 - [ ] **6 Nov:** one job translated to PySpark and reconciled end to end. Miss → pull out, time goes to LeetCode
 - [x] 10 Nov: holdout check + retry loop working, demo-able (done 12 Nov: `sale` passes the dev month, May 2016, and the holdout month, April 2016)
 - [ ] 12 Nov: deck, diagram, Responsible AI note, 3-min video drafted

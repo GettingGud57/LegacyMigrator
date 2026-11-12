@@ -9,11 +9,11 @@ The job runs inside a transaction that gets rolled back at the end,
 so the database is left exactly as it was and this can be rerun any time.
 
 Each job is described in jobs/<job>.json: its database, procedure, staging script and tables,
-plus an optional "holdout" section that changes how staging is loaded for the holdout batch.
+plus optional "batches": other inputs for the same job, such as the holdout, each changing how staging is loaded.
 
 Usage (from the repo root):
     python migrator/run_legacy.py sale            the dev batch, saved to snapshots/sale/
-    python migrator/run_legacy.py sale_holdout    the holdout batch, saved to snapshots/sale_holdout/
+    python migrator/run_legacy.py sale_holdout    the "holdout" batch, saved to snapshots/sale_holdout/
 """
 import json
 import os
@@ -27,25 +27,26 @@ import pyarrow.parquet as pq
 import pyodbc
 from dotenv import load_dotenv
 
-HOLDOUT_SUFFIX = "_holdout"
-
-
 def load_job(name):
-    """The job spec for a snapshot name: "<job>" is the dev batch, "<job>_holdout" the holdout batch.
+    """The job spec for a snapshot name: "<job>" is the dev batch, "<job>_<batch>" one of its other batches.
 
-    The holdout is the same job on different input. The translator never sees it:
-    loop.py --holdout runs the final translation on it once and shows the verdict to humans only.
+    Other batches (the holdout, ...) are the same job on different input. The translator never sees them:
+    loop.py --holdout runs the final translation on one once and shows the verdict to humans only.
     """
-    job_name = name.removesuffix(HOLDOUT_SUFFIX)
-    path = Path("jobs") / f"{job_name}.json"
-    if not path.exists():
-        raise SystemExit(f"No job spec at {path}")
-    job = json.loads(path.read_text())
-    if name != job_name:
-        if "holdout" not in job:
-            raise SystemExit(f"{path} has no \"holdout\" section, so there is no {name} batch")
-        job = {**job, **job["holdout"]}  # e.g. a different staging script or staging_vars
-    return job
+    path = Path("jobs") / f"{name}.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    # "<job>_<batch>": job names may contain "_" themselves, so try each split, longest job name first
+    for i in reversed([i for i, ch in enumerate(name) if ch == "_"]):
+        job_name, batch = name[:i], name[i + 1:]
+        path = Path("jobs") / f"{job_name}.json"
+        if path.exists():
+            job = json.loads(path.read_text())
+            batches = job.get("batches", {})
+            if batch not in batches:
+                raise SystemExit(f"{path} has no \"{batch}\" batch. Its batches: {sorted(batches) or 'none'}")
+            return {**job, **batches[batch]}  # e.g. a different staging script or staging_vars
+    raise SystemExit(f"No job spec at jobs/{name}.json")
 
 # pyodbc can't read map columns (geography/geometry), so read them as text instead
 SPATIAL_TYPES = {"geography", "geometry"}
@@ -72,7 +73,7 @@ def run_script(cur, path, variables=None):
     """
     sql = Path(path).read_text(encoding="utf-8-sig")
     for name, value in (variables or {}).items():
-        sql, found = re.subn(rf"DECLARE @{name} int = -?\d+;", f"DECLARE @{name} int = {int(value)};", sql)
+        sql, found = re.subn(rf"DECLARE\s+@{name}\s+int\s*=\s*-?\d+\s*;", f"DECLARE @{name} int = {int(value)};", sql)
         if found != 1:
             raise SystemExit(f"{path}: expected one 'DECLARE @{name} int = ...;' line, found {found}")
     cur.execute(sql)

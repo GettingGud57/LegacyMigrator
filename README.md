@@ -9,15 +9,18 @@ It is our entry for EXL Data & AI Hackathon Challenge 03.
 AI often outputs plausible code that silently fails edge cases or subtle business logic.
 
 **The Solution:** LegacyMigrator catches hallucination risks by separating code generation from execution.
-The AI translates T-SQL using schema definitions alone, with zero access to legacy target outputs.
+The AI translates T-SQL using schema definitions alone; the only data it ever sees is the diff report from a failed dev attempt.
 A loop runs the translated script against real snapshot inputs.
 A human-written judge compares the output against the T-SQL ground truth, so the AI never marks its own homework.
 If the script crashes or doesn't match, the loop feeds the error or the data diffs back to the model, for up to 3 attempts by default.
 An unseen holdout dataset can check for data-specific overfitting.
 
-**So far:** 2 of Microsoft's procedures pass, each on a dev month and on a holdout month the translator never saw:
-- `MigrateStagedSaleData`, 8 tables: dev May 2016, holdout April 2016.
-- `MigrateStagedCityData`, a history table: dev July 2015, holdout July 2014.
+**So far:** 4 jobs pass, each on a dev batch and on a holdout batch the translator never saw:
+- `MigrateStagedSaleData` (Microsoft), 8 tables: dev May 2016, holdout April 2016.
+- `MigrateStagedCityData` (Microsoft), a history table: dev July 2015, holdout July 2014, plus a 13-month batch in which 1,535 cities changed twice.
+- `MigrateStagedClaimData` and `MigrateStagedPremiumData` (insurance test jobs on synthetic data, with planted edge cases): dev June 2025, holdout September 2025.
+
+To check that a PASS means something, we also break translations on purpose: the judge caught 13 of 14 planted bugs, and the one it missed is a known gap in how it treats ignored columns.
 
 ## How it works
 
@@ -39,7 +42,7 @@ An unseen holdout dataset can check for data-specific overfitting.
 1. `run_legacy.py` runs the legacy job on SQL Server inside a transaction.
    It saves every table the job touches before and after the job runs, then rolls back, so the database is left unchanged.
 2. `translate.py` sends the legacy SQL and the table schemas to Claude, which writes a PySpark job.
-   It gets no tools and never sees any data, only column names and types.
+   It gets no tools and no data, only column names and types, plus the error or diff report on a retry (step 5).
 3. `run_spark.py` checks the translated file for cheats, then runs it on the same `before/` tables.
 4. `diff.reconcile` compares the legacy output with the Spark output, table by table.
 5. `loop.py` repeats steps 2 to 4.
@@ -98,8 +101,19 @@ Follow these 4 steps to set up your local development environment.
    pip install -r requirements.txt
    ```
    Run `source .venv/bin/activate` again whenever you open a new terminal window.
+5. Optional, for the insurance jobs: build the two synthetic databases, then create the two procedures in the warehouse.
+   Rebuilding drops and recreates both databases, so it also resets them:
+   ```
+   python scripts/insurance/run_sql.py scripts/insurance/create_insurance.sql
+   python scripts/insurance/run_sql.py legacy_jobs/insurance/MigrateStagedClaimData.sql InsuranceDW
+   python scripts/insurance/run_sql.py legacy_jobs/insurance/MigrateStagedPremiumData.sql InsuranceDW
+   ```
 
 ## Run it
+
+The commands below use the `sale` job.
+The other jobs are `city`, `claim` and `premium`, each with a `<job>_holdout` batch.
+
 
 1. Snapshot the legacy job (SQL Server must be running):
    ```
@@ -125,8 +139,10 @@ Follow these 4 steps to set up your local development environment.
 
 ```
 LegacyMigrator/
-├── legacy_jobs/wwi/     Microsoft's WideWorldImporters T-SQL procedures (MIT licence): the code being migrated
-├── jobs/                One spec per job: its legacy SQL file, key columns and ignored columns, each ignored column with a written reason
+├── legacy_jobs/         The code being migrated
+│   ├── wwi/             Microsoft's WideWorldImporters T-SQL procedures (MIT licence)
+│   └── insurance/       Insurance test jobs written for this project
+├── jobs/                One spec per job: how to run its legacy job and extra batches (like the holdout), its key columns, and its ignored columns, each with a written reason
 ├── jobs_pyspark/        The PySpark translations (noop.py is a test job that changes nothing)
 ├── migrator/            The tool
 │   ├── run_legacy.py    Runs a legacy job on SQL Server and saves before/after snapshots
@@ -135,7 +151,8 @@ LegacyMigrator/
 │   ├── run_spark.py     Runs a translation on the before/ snapshot
 │   ├── diff.py          The judge: compares the Spark output with the legacy output (hand-written)
 │   └── loop.py          Translate, run, judge, and retry with feedback
-├── scripts/             Test setup: loads a month of sales into staging, replacing Microsoft's Windows-only SSIS step
+├── scripts/             Test setup: loads each job's staging table, replacing Microsoft's Windows-only SSIS step
+│   └── insurance/       Builds the synthetic insurance databases and their dev and holdout loaders
 ├── test/cheats/         A fake cheating translation that cheat.py must reject
 ├── snapshots/           Created by run_legacy.py and loop.py, git-ignored
 ├── docker-compose.yml   SQL Server 2022 container
@@ -152,6 +169,7 @@ LegacyMigrator/
 | Tool | Used for |
 |---|---|
 | Claude Sonnet 5.5 (`claude-sonnet-5-5`, Anthropic API) | Part of the tool: `translate.py` asks it to write each PySpark translation. It sees the legacy SQL and table schemas, never any data. |
+| Claude (used by a teammate) | Generated the synthetic insurance test databases, their dev and holdout loaders, and `scripts/insurance/run_sql.py`. |
 | Claude Code and Claude chat (claude.ai) | Helped build the tool. They wrote `migrator/loop.py`, `migrator/run_spark.py`, `migrator/run_legacy.py`, `docker-compose.yml`, `scripts/load_sale_staging.sql` and `SETUP.md`, helped edit `migrator/translate.py`, and helped write this README. |
 
 What the AI did not do:
@@ -167,5 +185,7 @@ What the AI did not do:
 |---|---|---|
 | Legacy procedures in `legacy_jobs/wwi/` | Microsoft's WideWorldImporters samples ([sql-server-samples](https://github.com/microsoft/sql-server-samples)) | MIT, see `legacy_jobs/wwi/LICENSE-microsoft.txt` |
 | WideWorldImporters databases | The same Microsoft repo: data about a fictional company, no real personal data | Public sample data |
+| Insurance test databases and loaders (`scripts/insurance/`) | Generated for this project by a teammate with Claude: synthetic, deterministic data, no real people | Ours |
+| Insurance procedures (`legacy_jobs/insurance/`) | Written for this project by a teammate | Ours |
 | Python packages | PySpark, pyarrow, anthropic, pyodbc, python-dotenv | Apache-2.0, Apache-2.0, Apache-2.0, MIT, BSD-3-Clause |
 | SQL Server 2022 Developer Edition | Microsoft's official Docker image | Free for development and testing |

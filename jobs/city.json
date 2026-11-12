@@ -9,8 +9,15 @@
     "Integration.[ETL Cutoff]",
     "Dimension.City"
   ],
-  "holdout": {
-    "staging_vars": {"MonthsBack": 23}
+  "batches": {
+    "holdout": {
+      "note": "July 2014",
+      "staging_vars": {"MonthsBack": 23}
+    },
+    "twice": {
+      "note": "June 2014 to July 2015: cities that changed in both July 2014 and July 2015, so the earliest and latest Valid From differ",
+      "staging_vars": {"MonthsBack": 11, "WindowMonths": 13}
+    }
   },
   "keys": {
     "Integration.City_Staging": ["City Staging Key"],

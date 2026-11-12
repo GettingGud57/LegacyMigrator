@@ -5,14 +5,15 @@
 
 SET NOCOUNT ON;
 
--- 1. Pick a time window: one month, ending @MonthsBack months before the warehouse's last city load.
+-- 1. Pick a time window: @WindowMonths long, ending @MonthsBack months before the warehouse's last city load.
 --    Cities rarely change: the shop database only has city changes in Jan 2013, Jul 2013, Jul 2014 and Jul 2015,
 --    so the month next to the last load (as load_sale_staging.sql uses) would stage nothing.
---    11 = July 2015 (the dev batch). jobs/city.json sets 23 = July 2014 for the holdout batch.
-DECLARE @MonthsBack int = 11;
+--    The defaults are the dev batch: July 2015. jobs/city.json changes them for its other batches.
+DECLARE @MonthsBack   int = 11;
+DECLARE @WindowMonths int = 1;
 DECLARE @LastLoad   datetime2(7) = (SELECT [Cutoff Time] FROM Integration.[ETL Cutoff] WHERE [Table Name] = N'City');
 DECLARE @NewCutoff  datetime2(7) = DATEADD(month, -@MonthsBack, @LastLoad);
-DECLARE @LastCutoff datetime2(7) = DATEADD(month, -1, @NewCutoff);
+DECLARE @LastCutoff datetime2(7) = DATEADD(month, -@WindowMonths, @NewCutoff);
 
 -- 2. Clear staging
 DELETE FROM Integration.City_Staging;

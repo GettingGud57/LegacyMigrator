@@ -1,0 +1,38 @@
+{
+  "legacy_sql": "legacy_jobs/insurance/MigrateStagedPremiumData.sql",
+  "database": "InsuranceDW",
+  "proc": "Integration.MigrateStagedPremiumData",
+  "staging_script": "scripts/insurance/load_premium_staging.sql",
+  "tables": [
+    "Integration.Premium_Staging",
+    "Integration.Lineage",
+    "Integration.[ETL Cutoff]",
+    "Dimension.Policy",
+    "Dimension.Customer",
+    "Dimension.Employee",
+    "Fact.Premium"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "September 2025",
+      "staging_script": "scripts/insurance/load_premium_staging_holdout.sql"
+    }
+  },
+  "keys": {
+    "Integration.Premium_Staging": ["Premium Staging Key"],
+    "Integration.Lineage": ["Lineage Key"],
+    "Integration.ETL Cutoff": ["Table Name"],
+    "Dimension.Policy": ["Policy Key"],
+    "Dimension.Customer": ["Customer Key"],
+    "Dimension.Employee": ["Employee Key"],
+    "Fact.Premium": ["Source Transaction ID"]
+  },
+  "ignore": {
+    "Fact.Premium": {
+      "Premium Key": "IDENTITY(1,1) column left out of the INSERT, so SQL Server numbers new rows itself and never rolls the counter back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 53)"
+    }
+  }
+}

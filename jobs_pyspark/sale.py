@@ -62,22 +62,24 @@ def run(spark, tables):
 
     # Lineage update
     lin_cols = lineage.columns
+    dlc_type = lineage.schema["Data Load Completed"].dataType
     new_lineage = (lineage.crossJoin(lk)
                    .withColumn("_m", F.col("Lineage Key") == F.col("_lk"))
                    .withColumn("Data Load Completed",
-                               F.when(F.col("_m"), F.current_timestamp().cast("timestamp"))
-                               .otherwise(F.col("Data Load Completed")))
+                               F.when(F.col("_m"), F.current_timestamp().cast(dlc_type))
+                               .otherwise(F.col("Data Load Completed").cast(dlc_type)))
                    .withColumn("Was Successful",
                                F.when(F.col("_m"), F.lit(True)).otherwise(F.col("Was Successful")))
-                   .select(*lin_cols))
+                   .select(*[F.col(c).cast(lineage.schema[c].dataType).alias(c) for c in lin_cols]))
 
     # ETL Cutoff update
     cut_cols = cutoff.columns
+    ct_type = cutoff.schema["Cutoff Time"].dataType
     new_cutoff = (cutoff.crossJoin(cut)
                   .withColumn("Cutoff Time",
-                              F.when(F.col("Table Name") == "Sale", F.col("_c"))
-                              .otherwise(F.col("Cutoff Time")))
-                  .select(*cut_cols))
+                              F.when(F.col("Table Name") == "Sale", F.col("_c").cast(ct_type))
+                              .otherwise(F.col("Cutoff Time").cast(ct_type)))
+                  .select(*[F.col(c).cast(cutoff.schema[c].dataType).alias(c) for c in cut_cols]))
 
     return {
         "Integration.Sale_Staging": new_stg,
