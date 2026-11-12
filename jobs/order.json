@@ -1,0 +1,58 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedOrderData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedOrderData",
+  "staging_script": "scripts/load_order_staging.sql",
+  "tables": [
+    "Integration.[Order_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[City]",
+    "Dimension.[Customer]",
+    "Dimension.[Employee]",
+    "Dimension.[Stock Item]",
+    "Fact.[Order]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 1",
+      "staging_vars": {
+        "MonthsBack": 1
+      }
+    }
+  },
+  "keys": {
+    "Integration.Order_Staging": [
+      "Order Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.City": [
+      "City Key"
+    ],
+    "Dimension.Customer": [
+      "Customer Key"
+    ],
+    "Dimension.Employee": [
+      "Employee Key"
+    ],
+    "Dimension.Stock Item": [
+      "Stock Item Key"
+    ],
+    "Fact.Order": [
+      "Order Key"
+    ]
+  },
+  "ignore": {
+    "Fact.Order": {
+      "Order Key": "IDENTITY column left out of the INSERT, so SQL Server numbers new rows itself and never rolls the counter back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 71)"
+    }
+  }
+}

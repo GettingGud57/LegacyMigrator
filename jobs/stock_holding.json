@@ -1,0 +1,46 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedStockHoldingData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedStockHoldingData",
+  "staging_script": "scripts/load_stock_holding_staging.sql",
+  "tables": [
+    "Integration.[StockHolding_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Stock Item]",
+    "Fact.[Stock Holding]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "odd [WWI Stock Item ID] values",
+      "staging_vars": {
+        "IdRemainder": 1
+      }
+    }
+  },
+  "keys": {
+    "Integration.StockHolding_Staging": [
+      "Stock Holding Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Stock Item": [
+      "Stock Item Key"
+    ],
+    "Fact.Stock Holding": [
+      "Stock Item Key"
+    ]
+  },
+  "ignore": {
+    "Fact.Stock Holding": {
+      "Stock Holding Key": "IDENTITY column left out of the INSERT. TRUNCATE TABLE (line 27) restarts the counter at 1, so the numbers are always 1 to N, but the INSERT ... SELECT (line 31) has no ORDER BY, so SQL Server does not define which row gets which number"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 39)"
+    }
+  }
+}

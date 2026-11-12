@@ -1,0 +1,42 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedCustomerData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedCustomerData",
+  "staging_script": "scripts/load_customer_staging.sql",
+  "tables": [
+    "Integration.[Customer_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Customer]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "odd [WWI Customer ID] values",
+      "staging_vars": {
+        "IdRemainder": 1
+      }
+    }
+  },
+  "keys": {
+    "Integration.Customer_Staging": [
+      "Customer Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Customer": [
+      "Customer Key"
+    ]
+  },
+  "ignore": {
+    "Dimension.Customer": {
+      "Customer Key": "left out of the INSERT, so SQL Server fills it from a counter (NEXT VALUE FOR [Sequences].[CustomerKey]) that never rolls back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 42)"
+    }
+  }
+}

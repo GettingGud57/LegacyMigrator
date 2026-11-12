@@ -1,0 +1,50 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedPurchaseData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedPurchaseData",
+  "staging_script": "scripts/load_purchase_staging.sql",
+  "tables": [
+    "Integration.[Purchase_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Stock Item]",
+    "Dimension.[Supplier]",
+    "Fact.[Purchase]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 1",
+      "staging_vars": {
+        "MonthsBack": 1
+      }
+    }
+  },
+  "keys": {
+    "Integration.Purchase_Staging": [
+      "Purchase Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Stock Item": [
+      "Stock Item Key"
+    ],
+    "Dimension.Supplier": [
+      "Supplier Key"
+    ],
+    "Fact.Purchase": [
+      "Purchase Key"
+    ]
+  },
+  "ignore": {
+    "Fact.Purchase": {
+      "Purchase Key": "IDENTITY column left out of the INSERT, so SQL Server numbers new rows itself and never rolls the counter back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 49)"
+    }
+  }
+}

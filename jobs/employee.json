@@ -1,0 +1,42 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedEmployeeData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedEmployeeData",
+  "staging_script": "scripts/load_employee_staging.sql",
+  "tables": [
+    "Integration.[Employee_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Employee]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 2",
+      "staging_vars": {
+        "MonthsBack": 2
+      }
+    }
+  },
+  "keys": {
+    "Integration.Employee_Staging": [
+      "Employee Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Employee": [
+      "Employee Key"
+    ]
+  },
+  "ignore": {
+    "Dimension.Employee": {
+      "Employee Key": "left out of the INSERT, so SQL Server fills it from a counter (NEXT VALUE FOR [Sequences].[EmployeeKey]) that never rolls back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 39)"
+    }
+  }
+}

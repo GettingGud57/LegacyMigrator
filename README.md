@@ -15,12 +15,16 @@ A human-written judge compares the output against the T-SQL ground truth, so the
 If the script crashes or doesn't match, the loop feeds the error or the data diffs back to the model, for up to 3 attempts by default.
 An unseen holdout dataset can check for data-specific overfitting.
 
-**So far:** 4 jobs pass, each on a dev batch and on a holdout batch the translator never saw:
-- `MigrateStagedSaleData` (Microsoft), 8 tables: dev May 2016, holdout April 2016.
-- `MigrateStagedCityData` (Microsoft), a history table: dev July 2015, holdout July 2014, plus a 13-month batch in which 1,535 cities changed twice.
+**So far:** all 15 jobs pass on the first attempt, each on a dev batch and on a holdout batch the translator never saw:
+- All 13 of Microsoft's `MigrateStaged...Data` procedures for the WideWorldImporters warehouse.
+  They follow four patterns: history tables that keep every old version of a row (City, Customer, Employee, Payment Method, Stock Item, Supplier, Transaction Type), fact loads (Sale, Order, Purchase, Transaction), a `MERGE` that updates or inserts (Movement), and an empty-and-reload (Stock Holding).
+  City also passes a 13-month batch in which 1,535 cities changed twice.
 - `MigrateStagedClaimData` and `MigrateStagedPremiumData` (insurance test jobs on synthetic data, with planted edge cases): dev June 2025, holdout September 2025.
 
-To check that a PASS means something, we also break translations on purpose: the judge catches all 14 planted bugs.
+Each job's holdout batch is described in `jobs/<job>.json`.
+Some holdouts are small because their source tables are small: Supplier and Payment Method have 1 row, and Transaction Type has 2.
+
+To check that a PASS means something, we also break translations on purpose: the judge catches all 22 planted bugs, in the City, Claim, Premium, Movement and Stock Holding translations.
 
 ## How it works
 
@@ -112,7 +116,7 @@ Follow these 4 steps to set up your local development environment.
 ## Run it
 
 The commands below use the `sale` job.
-The other jobs are `city`, `claim` and `premium`, each with a `<job>_holdout` batch.
+The other 14 jobs are the files in `jobs/` (such as `city`, `movement` and `claim`), each with a `<job>_holdout` batch.
 
 
 1. Snapshot the legacy job (SQL Server must be running):
@@ -141,27 +145,29 @@ The other jobs are `city`, `claim` and `premium`, each with a `<job>_holdout` ba
 
 ```
 LegacyMigrator/
-├── legacy_jobs/         The code being migrated
-│   ├── wwi/             Microsoft's WideWorldImporters T-SQL procedures (MIT licence)
-│   └── insurance/       Insurance test jobs written for this project
-├── jobs/                One spec per job: how to run its legacy job and extra batches (like the holdout), its key columns, and its ignored columns, each with a written reason
-├── jobs_pyspark/        The PySpark translations (noop.py is a test job that changes nothing)
-├── migrator/            The tool
-│   ├── run_legacy.py    Runs a legacy job on SQL Server and saves before/after snapshots
-│   ├── translate.py     Asks Claude to translate the legacy SQL into PySpark
-│   ├── cheat.py         Rejects translations that try to cheat, for example by reading the answer files
-│   ├── run_spark.py     Runs a translation on the before/ snapshot
-│   ├── diff.py          The judge: compares the Spark output with the legacy output (hand-written)
-│   └── loop.py          Translate, run, judge, and retry with feedback
-├── scripts/             Test setup: loads each job's staging table, replacing Microsoft's Windows-only SSIS step
-│   └── insurance/       Builds the synthetic insurance databases and their dev and holdout loaders
-├── test/cheats/         A fake cheating translation that cheat.py must reject
-├── snapshots/           Created by run_legacy.py and loop.py, git-ignored
-├── docker-compose.yml   SQL Server 2022 container
-├── requirements.txt     Python packages
-├── SETUP.md             Full setup walkthrough
-├── DEVLOG.md            Development log
-└── AGENTS.md            Rules for AI coding agents working in this repo (CLAUDE.md points to it)
+├── legacy_jobs/           The code being migrated
+│   ├── wwi/               Microsoft's WideWorldImporters T-SQL procedures (MIT licence)
+│   └── insurance/         Insurance test jobs written for this project
+├── jobs/                  One spec per job: how to run its legacy job and extra batches (like the holdout), its key columns, and its ignored columns, each with a written reason
+├── jobs_pyspark/          The PySpark translations (noop.py is a test job that changes nothing)
+├── migrator/              The tool
+│   ├── run_legacy.py      Runs a legacy job on SQL Server and saves before/after snapshots
+│   ├── translate.py       Asks Claude to translate the legacy SQL into PySpark
+│   ├── cheat.py           Rejects translations that try to cheat, for example by reading the answer files
+│   ├── run_spark.py       Runs a translation on the before/ snapshot
+│   ├── diff.py            The judge: compares the Spark output with the legacy output (hand-written)
+│   └── loop.py            Translate, run, judge, and retry with feedback
+├── scripts/               Test setup: loads each job's staging table, replacing Microsoft's Windows-only SSIS step
+│   ├── make_wwi_jobs.py   Sets up the WideWorldImporters jobs: exports each procedure, writes its staging loader and an empty job spec
+│   ├── column_evidence.py Prints the evidence for choosing a job's keys and ignored columns
+│   └── insurance/         Builds the synthetic insurance databases and their dev and holdout loaders
+├── test/cheats/           A fake cheating translation that cheat.py must reject
+├── snapshots/             Created by run_legacy.py and loop.py, git-ignored
+├── docker-compose.yml     SQL Server 2022 container
+├── requirements.txt       Python packages
+├── SETUP.md               Full setup walkthrough
+├── DEVLOG.md              Development log
+└── AGENTS.md              Rules for AI coding agents working in this repo (CLAUDE.md points to it)
 ```
 
 ## AI tools and existing code
@@ -172,13 +178,15 @@ LegacyMigrator/
 |---|---|
 | Claude Sonnet 5.5 (`claude-sonnet-5-5`, Anthropic API) | Part of the tool: `translate.py` asks it to write each PySpark translation. It sees the legacy SQL and table schemas, never any data. |
 | Claude (used by a teammate) | Generated the synthetic insurance test databases, their dev and holdout loaders, and `scripts/insurance/run_sql.py`. |
-| Claude Code and Claude chat (claude.ai) | Helped build the tool. They wrote `migrator/loop.py`, `migrator/run_spark.py`, `migrator/run_legacy.py`, `docker-compose.yml`, `scripts/load_sale_staging.sql` and `SETUP.md`, helped edit `migrator/translate.py`, and helped write this README. |
+| Claude Code and Claude chat (claude.ai) | Helped build the tool. They wrote `migrator/loop.py`, `migrator/run_spark.py`, `migrator/run_legacy.py`, `docker-compose.yml`, the `scripts/load_*_staging.sql` loaders, `scripts/make_wwi_jobs.py`, `scripts/column_evidence.py` and `SETUP.md`, helped edit `migrator/translate.py`, and helped write this README. |
 
 What the AI did not do:
 - `migrator/diff.py`, the judge that decides PASS or FAIL, is written by hand.
 - `migrator/cheat.py`, the check that rejects cheating translations, is written by hand.
-- No column is ignored without a written reason in `jobs/<job>.json`, and a human checks each reason against the legacy SQL.
+- No column is ignored without a written reason in `jobs/<job>.json`.
+  A human set the rule: ignore only the clock time the job ran and the ID numbers SQL Server generates itself, because those differ on every run.
   For `jobs/sale.json`, Claude Code proposed the two ignored columns, and a human verified both: `Data Load Completed` is set to `SYSDATETIME()` (line 70 of the procedure), and the job never writes `Sale Key`, so SQL Server fills it in itself.
+  For the 11 newest WideWorldImporters jobs, `scripts/column_evidence.py` listed every such column from the SQL and the database, a human approved applying the rule to all of them, and Claude Code wrote the reasons from that evidence.
 - The rules Claude Code had to follow while building the tool are in [AGENTS.md](AGENTS.md).
 
 ### Existing code and data

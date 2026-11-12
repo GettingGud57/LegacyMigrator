@@ -1,0 +1,42 @@
+{
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedTransactionTypeData.sql",
+  "database": "WideWorldImportersDW",
+  "proc": "Integration.MigrateStagedTransactionTypeData",
+  "staging_script": "scripts/load_transaction_type_staging.sql",
+  "tables": [
+    "Integration.[TransactionType_Staging]",
+    "Integration.[ETL Cutoff]",
+    "Integration.[Lineage]",
+    "Dimension.[Transaction Type]"
+  ],
+  "batches": {
+    "holdout": {
+      "note": "months back 5",
+      "staging_vars": {
+        "MonthsBack": 5
+      }
+    }
+  },
+  "keys": {
+    "Integration.TransactionType_Staging": [
+      "Transaction Type Staging Key"
+    ],
+    "Integration.ETL Cutoff": [
+      "Table Name"
+    ],
+    "Integration.Lineage": [
+      "Lineage Key"
+    ],
+    "Dimension.Transaction Type": [
+      "Transaction Type Key"
+    ]
+  },
+  "ignore": {
+    "Dimension.Transaction Type": {
+      "Transaction Type Key": "left out of the INSERT, so SQL Server fills it from a counter (NEXT VALUE FOR [Sequences].[TransactionTypeKey]) that never rolls back, so no rerun can match it"
+    },
+    "Integration.Lineage": {
+      "Data Load Completed": "set to SYSDATETIME(), the clock time when the job ran (line 39)"
+    }
+  }
+}
