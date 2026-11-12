@@ -26,6 +26,10 @@ Some holdouts are small because their source tables are small: Supplier and Paym
 
 To check that a PASS means something, we also break translations on purpose: the judge catches all 22 planted bugs, in the City, Claim, Premium, Movement and Stock Holding translations.
 
+Every job also has a column-level lineage map in `lineage/<job>.md`, saying which source columns feed each column the job writes.
+Claude drafts each map, and `lineage.py` checks it without AI: all 15 maps cover every column, cite only columns that exist, and agree with the keys and ignored columns in `jobs/<job>.json` and with the tables each job really changed.
+Those checks can't prove a map right, so each map still says it needs a human review.
+
 ## How it works
 
 ```
@@ -52,6 +56,9 @@ To check that a PASS means something, we also break translations on purpose: the
 5. `loop.py` repeats steps 2 to 4.
    If a translation crashes or fails the comparison, the next attempt gets the error or the diff report as feedback.
    Optionally, it then runs the final translation once on a holdout snapshot that the translator never sees.
+6. `lineage.py` asks Claude, in a separate call with the same inputs as the translator, to map every column the job writes to its source columns.
+   It checks the map without AI, cross-checks it against `jobs/<job>.json` and the dev snapshot, and writes `lineage/<job>.md` for people to review.
+   Lineage never affects a PASS or FAIL.
 
 ## Prerequisites
 
@@ -140,6 +147,13 @@ The other 14 jobs are the files in `jobs/` (such as `city`, `movement` and `clai
    python migrator/loop.py sale --from-existing --holdout sale_holdout
    ```
    Success: `PASS` under the `=== holdout ... (never shown to the translator) ===` line.
+4. Optional: draft and check the job's column-level lineage.
+   The first command calls Claude, the second only reruns the checks on the saved map:
+   ```
+   python migrator/lineage.py sale
+   python migrator/lineage.py sale --check
+   ```
+   Success: `structure: ok` and `disagrees, for a human to resolve: 0`, and the map is in `lineage/sale.md`.
 
 ## Project layout
 
@@ -150,12 +164,14 @@ LegacyMigrator/
 │   └── insurance/         Insurance test jobs written for this project
 ├── jobs/                  One spec per job: how to run its legacy job and extra batches (like the holdout), its key columns, and its ignored columns, each with a written reason
 ├── jobs_pyspark/          The PySpark translations (noop.py is a test job that changes nothing)
+├── lineage/               Column-level lineage per job: a map for people (.md) and the same map as data (.json)
 ├── migrator/              The tool
 │   ├── run_legacy.py      Runs a legacy job on SQL Server and saves before/after snapshots
 │   ├── translate.py       Asks Claude to translate the legacy SQL into PySpark
 │   ├── cheat.py           Rejects translations that try to cheat, for example by reading the answer files
 │   ├── run_spark.py       Runs a translation on the before/ snapshot
 │   ├── diff.py            The judge: compares the Spark output with the legacy output (hand-written)
+│   ├── lineage.py         Asks Claude for each job's column-level lineage and checks the map without AI
 │   └── loop.py            Translate, run, judge, and retry with feedback
 ├── scripts/               Test setup: loads each job's staging table, replacing Microsoft's Windows-only SSIS step
 │   ├── make_wwi_jobs.py   Sets up the WideWorldImporters jobs: exports each procedure, writes its staging loader and an empty job spec
@@ -176,9 +192,9 @@ LegacyMigrator/
 
 | Tool | Used for |
 |---|---|
-| Claude Sonnet 5.5 (`claude-sonnet-5-5`, Anthropic API) | Part of the tool: `translate.py` asks it to write each PySpark translation. It sees the legacy SQL and table schemas, never any data. |
+| Claude Sonnet 5.5 (`claude-sonnet-5-5`, Anthropic API) | Part of the tool: `translate.py` asks it to write each PySpark translation, and `lineage.py` asks it to draft each job's column-level lineage. It sees the legacy SQL and table schemas, never any data. |
 | Claude (used by a teammate) | Generated the synthetic insurance test databases, their dev and holdout loaders, and `scripts/insurance/run_sql.py`. |
-| Claude Code and Claude chat (claude.ai) | Helped build the tool. They wrote `migrator/loop.py`, `migrator/run_spark.py`, `migrator/run_legacy.py`, `docker-compose.yml`, the `scripts/load_*_staging.sql` loaders, `scripts/make_wwi_jobs.py`, `scripts/column_evidence.py` and `SETUP.md`, helped edit `migrator/translate.py`, and helped write this README. |
+| Claude Code and Claude chat (claude.ai) | Helped build the tool. They wrote `migrator/loop.py`, `migrator/run_spark.py`, `migrator/run_legacy.py`, `migrator/lineage.py`, `docker-compose.yml`, the `scripts/load_*_staging.sql` loaders, `scripts/make_wwi_jobs.py`, `scripts/column_evidence.py` and `SETUP.md`, helped edit `migrator/translate.py`, and helped write this README. |
 
 What the AI did not do:
 - `migrator/diff.py`, the judge that decides PASS or FAIL, is written by hand.

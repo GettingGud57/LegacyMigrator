@@ -21,6 +21,7 @@ Submission due 13 Nov (email to Monika Rawal). Finalists announced by 19 Nov. Fi
 - 13 `Integration.MigrateStaged*` procedures, ~1,000 lines, 141 statements.
 - sqlglot can't parse a whole procedure as-is, but parses all 141 statements once the `CREATE PROCEDURE ... BEGIN/END` wrapper is stripped.
 - Transpiling to Spark with strict errors on reported **141/141 success**, but the output keeps T-SQL-only syntax (`UPDATE ... FROM ... JOIN`, `DELETE s FROM ...`) that Spark rejects. Silent failure from a standard tool. Pitch material.
+- Checked in real Spark on 12 Nov (sqlglot 30.31.0, strict errors on, Spark 4.2.1): sqlglot converts Sale's `DELETE s FROM Fact.Sale AS s WHERE ...` without complaint, and `spark.sql()` rejects the result with `ParseException: [PARSE_SYNTAX_ERROR] Syntax error at or near 's'`.
 - The diff will need a per-job list of columns to ignore: the procedures write `SYSDATETIME()` timestamps, lineage keys and identity keys that can never match between runs.
 - Picked 3 Microsoft procedures: **City** (history table), **Sale** (lookups + delete/reinsert), **Movement** (only one using `MERGE`).
 
@@ -114,7 +115,7 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - [ ] Bookmarked: `run_legacy.py` lets Arrow infer snapshot types from the values (SQL `int` becomes int64, `decimal(18,2)` becomes `decimal(7,2)` sized to the batch), so a type check in `diff.py` would compare against guessed types. Build the snapshot schema from `sys.columns` first; needs every snapshot regenerated and every loop re-run.
 - [ ] **6 Nov:** one job translated to PySpark and reconciled end to end. Miss → pull out, time goes to LeetCode
 - [x] 10 Nov: holdout check + retry loop working, demo-able (done 12 Nov: `sale` passes the dev month, May 2016, and the holdout month, April 2016)
-- [ ] 12 Nov: deck, diagram, Responsible AI note, 3-min video drafted
+- [ ] 12 Nov: deck, diagram, Responsible AI note, 3-min video drafted (deck, diagram and Responsible AI note drafted 12 Nov; video still to do)
 - [ ] 13 Nov: submitted
 
 ## 12 Nov night: all 13 Microsoft jobs, 15 of 15 pass
@@ -130,11 +131,15 @@ docker run --platform linux/amd64 -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=<SA_P
 - Him approved the rule for all 11 (ignore the clock and the counter, nothing else) and picked `WWI Stock Item Transaction ID` as Movement's key; Claude Code wrote the reasons into the job files.
   Stock Holding's key is `Stock Item Key` (one row per product); its counter `Stock Holding Key` is ignored with its own reason: `TRUNCATE` restarts it at 1, but the insert has no `ORDER BY`, so which row gets which number is undefined.
 - All 11 PASS on attempt 1, dev and holdout, $0.38 for the 11 translations ($0.028 to $0.051 each).
+  Wall-clock time per job on this MacBook, for one translation plus the Spark run and judge on dev and on the holdout: 43 seconds (Transaction Type) to 131 seconds (Order).
   A translation that changes nothing fails every one of the 22 batches, so each PASS reproduced real changes.
 - Mutation test on the two new kinds of job, 8 broken copies, all caught on dev and on the holdout.
   Movement (`MERGE`): no update branch, inserts rows that already exist, update keeps the old lineage key, staging keys never written back.
   Stock Holding (empty and reload): forgets the `TRUNCATE`, looks up the oldest stock item version, swaps two quantity columns, never marks the load successful.
   Running total: 22 of 22.
+- Retry rehearsal for the demo video: the loop started from the planted column-swap bug in `stock_holding` (`--from-existing --attempts 3 --holdout stock_holding_holdout`).
+  Attempt 1 FAIL in `Fact.Stock Holding`, with the report listing the wrong `Quantity On Hand` values; attempt 2, Claude's fix from that report ($0.03), PASS; holdout PASS; 69 seconds in all.
+  First recorded run of the AI fixing a translation from the diff report. `jobs_pyspark/stock_holding.py` restored from git afterwards.
 - The 15 jobs follow four patterns: history tables (7), fact loads (4), a `MERGE` (Movement) and an empty-and-reload (Stock Holding).
   13 of the 15 share Microsoft's template, and the deck's limits slide says so.
 
