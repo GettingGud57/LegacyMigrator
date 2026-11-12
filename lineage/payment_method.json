@@ -1,0 +1,214 @@
+{
+  "job": "payment_method",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedPaymentMethodData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:33:27",
+  "tables": {
+    "Dimension.Payment Method": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "Payment Method Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            32,
+            33
+          ],
+          "note": "Omitted from the INSERT column list, so the database fills it (identity/default)."
+        },
+        "WWI Payment Method ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.PaymentMethod_Staging",
+              "column": "WWI Payment Method ID"
+            }
+          ],
+          "lines": [
+            33,
+            34
+          ],
+          "note": "Inserted directly from staging."
+        },
+        "Payment Method": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.PaymentMethod_Staging",
+              "column": "Payment Method"
+            }
+          ],
+          "lines": [
+            33,
+            34
+          ],
+          "note": "Inserted directly from staging."
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.PaymentMethod_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            33,
+            34
+          ],
+          "note": "Inserted directly from staging."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.PaymentMethod_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.PaymentMethod_Staging",
+              "column": "WWI Payment Method ID"
+            },
+            {
+              "table": "Integration.PaymentMethod_Staging",
+              "column": "Valid To"
+            }
+          ],
+          "lines": [
+            21,
+            23,
+            26,
+            28,
+            29,
+            30,
+            33,
+            34
+          ],
+          "note": "The UPDATE closes open rows with the MIN staged Valid From per ID; the INSERT copies the staged Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            33,
+            35
+          ],
+          "note": "@LineageKey is the latest Lineage row for 'Payment Method' with no completion time."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": "Only used in the WHERE clause."
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            39
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            40
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": "Only used in the WHERE clause."
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            44,
+            45,
+            46,
+            48
+          ],
+          "note": "Subquery returns the Source System Cutoff Time of the current lineage row."
+        }
+      }
+    }
+  },
+  "columns_mapped": 14,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.Payment Method.Payment Method Key: ignored in jobs/payment_method.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/payment_method.json, and the map says generated",
+      "Dimension.Payment Method: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: changed by the legacy job, and in the map",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

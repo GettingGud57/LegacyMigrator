@@ -1,0 +1,294 @@
+{
+  "job": "customer",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedCustomerData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:31:39",
+  "tables": {
+    "Dimension.Customer": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "Customer Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            32,
+            33
+          ],
+          "note": "Omitted from the INSERT column list, so the database fills it (identity/sequence)."
+        },
+        "WWI Customer ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "WWI Customer ID"
+            }
+          ],
+          "lines": [
+            33,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Customer": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Customer"
+            }
+          ],
+          "lines": [
+            33,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Bill To Customer": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Bill To Customer"
+            }
+          ],
+          "lines": [
+            33,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Category": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Category"
+            }
+          ],
+          "lines": [
+            33,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Buying Group": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Buying Group"
+            }
+          ],
+          "lines": [
+            34,
+            37
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Primary Contact": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Primary Contact"
+            }
+          ],
+          "lines": [
+            34,
+            37
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Postal Code": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Postal Code"
+            }
+          ],
+          "lines": [
+            34,
+            37
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            34,
+            37
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "WWI Customer ID"
+            },
+            {
+              "table": "Integration.Customer_Staging",
+              "column": "Valid To"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "WWI Customer ID"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "Valid To"
+            }
+          ],
+          "lines": [
+            18,
+            21,
+            23,
+            25,
+            26,
+            28,
+            29,
+            30,
+            34,
+            37
+          ],
+          "note": "Open rows (Valid To = end of time) are closed off with the earliest staged Valid From per customer; new rows take staging Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            35,
+            38
+          ],
+          "note": "Latest open Customer lineage row's key, held in @LineageKey."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            42
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            43
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            47,
+            48,
+            49,
+            51
+          ],
+          "note": "Taken from the Lineage row matching @LineageKey, for the Customer row only."
+        }
+      }
+    }
+  },
+  "columns_mapped": 19,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.Customer.Customer Key: ignored in jobs/customer.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/customer.json, and the map says generated",
+      "Dimension.Customer: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: changed by the legacy job, and in the map",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

@@ -1,0 +1,494 @@
+{
+  "job": "movement",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedMovementData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:32:14",
+  "tables": {
+    "Integration.Movement_Staging": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Movement Staging Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Date Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Stock Item Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Stock Item Key"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Last Modifed When"
+            }
+          ],
+          "lines": [
+            20,
+            21,
+            22,
+            23,
+            24,
+            25
+          ],
+          "note": "Dimension key valid at the modification time; 0 if no row matches."
+        },
+        "Customer Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Customer",
+              "column": "Customer Key"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "WWI Customer ID"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Customer ID"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Last Modifed When"
+            }
+          ],
+          "lines": [
+            26,
+            27,
+            28,
+            29,
+            30,
+            31
+          ],
+          "note": "Dimension key valid at the modification time; 0 if no row matches."
+        },
+        "Supplier Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Supplier",
+              "column": "Supplier Key"
+            },
+            {
+              "table": "Dimension.Supplier",
+              "column": "WWI Supplier ID"
+            },
+            {
+              "table": "Dimension.Supplier",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Supplier",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Supplier ID"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Last Modifed When"
+            }
+          ],
+          "lines": [
+            32,
+            33,
+            34,
+            35,
+            36,
+            37
+          ],
+          "note": "Dimension key valid at the modification time; 0 if no row matches."
+        },
+        "Transaction Type Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Transaction Type",
+              "column": "Transaction Type Key"
+            },
+            {
+              "table": "Dimension.Transaction Type",
+              "column": "WWI Transaction Type ID"
+            },
+            {
+              "table": "Dimension.Transaction Type",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Transaction Type",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Transaction Type ID"
+            },
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Last Modifed When"
+            }
+          ],
+          "lines": [
+            38,
+            39,
+            40,
+            41,
+            42,
+            43
+          ],
+          "note": "Dimension key valid at the modification time; 0 if no row matches."
+        },
+        "WWI Stock Item Transaction ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Invoice ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Purchase Order ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Quantity": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Stock Item ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Customer ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Supplier ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Transaction Type ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Last Modifed When": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Fact.Movement": {
+      "operations": [
+        "MERGE"
+      ],
+      "columns": {
+        "Movement Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            62
+          ],
+          "note": "Not in the INSERT list; the database fills it, and matched rows leave it alone."
+        },
+        "Date Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Date Key"
+            }
+          ],
+          "lines": [
+            52,
+            64
+          ],
+          "note": ""
+        },
+        "Stock Item Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Stock Item Key"
+            }
+          ],
+          "lines": [
+            53,
+            64
+          ],
+          "note": "Staging value that was resolved by the earlier lookup update."
+        },
+        "Customer Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Customer Key"
+            }
+          ],
+          "lines": [
+            54,
+            64
+          ],
+          "note": "Staging value that was resolved by the earlier lookup update."
+        },
+        "Supplier Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Supplier Key"
+            }
+          ],
+          "lines": [
+            55,
+            64
+          ],
+          "note": "Staging value that was resolved by the earlier lookup update."
+        },
+        "Transaction Type Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Transaction Type Key"
+            }
+          ],
+          "lines": [
+            56,
+            64
+          ],
+          "note": "Staging value that was resolved by the earlier lookup update."
+        },
+        "WWI Stock Item Transaction ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Stock Item Transaction ID"
+            }
+          ],
+          "lines": [
+            50,
+            64
+          ],
+          "note": "Merge match key; written only on insert."
+        },
+        "WWI Invoice ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Invoice ID"
+            }
+          ],
+          "lines": [
+            57,
+            64
+          ],
+          "note": ""
+        },
+        "WWI Purchase Order ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "WWI Purchase Order ID"
+            }
+          ],
+          "lines": [
+            58,
+            64
+          ],
+          "note": ""
+        },
+        "Quantity": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Movement_Staging",
+              "column": "Quantity"
+            }
+          ],
+          "lines": [
+            59,
+            64
+          ],
+          "note": ""
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            11,
+            12,
+            13,
+            14,
+            15,
+            60,
+            65
+          ],
+          "note": "Latest open Movement lineage row, held in @LineageKey."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            68
+          ],
+          "note": "Set from SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            69
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            73,
+            74,
+            75,
+            77
+          ],
+          "note": "Cutoff taken from the current lineage row, applied to the Movement row only."
+        }
+      }
+    }
+  },
+  "columns_mapped": 34,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Fact.Movement.Movement Key: ignored in jobs/movement.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/movement.json, and the map says generated",
+      "Fact.Movement: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: in the map, though this batch's data did not change it",
+      "Integration.Lineage: changed by the legacy job, and in the map",
+      "Integration.Movement_Staging: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

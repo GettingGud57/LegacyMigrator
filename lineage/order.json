@@ -1,0 +1,700 @@
+{
+  "job": "order",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedOrderData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:33:12",
+  "tables": {
+    "Integration.Order_Staging": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Order Staging Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "City Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.City",
+              "column": "City Key"
+            },
+            {
+              "table": "Dimension.City",
+              "column": "WWI City ID"
+            },
+            {
+              "table": "Dimension.City",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.City",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI City ID"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "note": "Looks up the city version valid at Last Modified When, defaulting to 0 if none is found."
+        },
+        "Customer Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Customer",
+              "column": "Customer Key"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "WWI Customer ID"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Customer",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI Customer ID"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
+          ],
+          "note": "Looks up the customer version valid at Last Modified When, defaulting to 0 if none is found."
+        },
+        "Stock Item Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Stock Item Key"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            31,
+            32,
+            33,
+            34,
+            35,
+            36
+          ],
+          "note": "Looks up the stock item version valid at Last Modified When, defaulting to 0 if none is found."
+        },
+        "Order Date Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Picked Date Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Salesperson Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Employee",
+              "column": "Employee Key"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "WWI Employee ID"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI Salesperson ID"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            37,
+            38,
+            39,
+            40,
+            41,
+            42
+          ],
+          "note": "Looks up the employee version valid at Last Modified When for the salesperson, defaulting to 0."
+        },
+        "Picker Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Employee",
+              "column": "Employee Key"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "WWI Employee ID"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI Picker ID"
+            },
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            43,
+            44,
+            45,
+            46,
+            47,
+            48
+          ],
+          "note": "Looks up the employee version valid at Last Modified When for the picker, defaulting to 0."
+        },
+        "WWI Order ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Backorder ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Description": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Package": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Quantity": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Unit Price": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Tax Rate": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Total Excluding Tax": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Tax Amount": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Total Including Tax": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI City ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Customer ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Stock Item ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Salesperson ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Picker ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Last Modified When": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Fact.Order": {
+      "operations": [
+        "DELETE",
+        "INSERT"
+      ],
+      "columns": {
+        "Order Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            59,
+            60,
+            63
+          ],
+          "note": "Omitted from the INSERT column list, so the database fills it by itself."
+        },
+        "City Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "City Key"
+            }
+          ],
+          "lines": [
+            60,
+            64
+          ],
+          "note": "Copied from the staging key resolved by the earlier UPDATE."
+        },
+        "Customer Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Customer Key"
+            }
+          ],
+          "lines": [
+            60,
+            64
+          ],
+          "note": "Copied from the staging key resolved by the earlier UPDATE."
+        },
+        "Stock Item Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Stock Item Key"
+            }
+          ],
+          "lines": [
+            60,
+            64
+          ],
+          "note": "Copied from the staging key resolved by the earlier UPDATE."
+        },
+        "Order Date Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Order Date Key"
+            }
+          ],
+          "lines": [
+            60,
+            64
+          ],
+          "note": ""
+        },
+        "Picked Date Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Picked Date Key"
+            }
+          ],
+          "lines": [
+            60,
+            64
+          ],
+          "note": ""
+        },
+        "Salesperson Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Salesperson Key"
+            }
+          ],
+          "lines": [
+            61,
+            65
+          ],
+          "note": "Copied from the staging key resolved by the earlier UPDATE."
+        },
+        "Picker Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Picker Key"
+            }
+          ],
+          "lines": [
+            61,
+            65
+          ],
+          "note": "Copied from the staging key resolved by the earlier UPDATE."
+        },
+        "WWI Order ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI Order ID"
+            }
+          ],
+          "lines": [
+            61,
+            65
+          ],
+          "note": ""
+        },
+        "WWI Backorder ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "WWI Backorder ID"
+            }
+          ],
+          "lines": [
+            61,
+            65
+          ],
+          "note": ""
+        },
+        "Description": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Description"
+            }
+          ],
+          "lines": [
+            61,
+            65
+          ],
+          "note": ""
+        },
+        "Package": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Package"
+            }
+          ],
+          "lines": [
+            62,
+            66
+          ],
+          "note": ""
+        },
+        "Quantity": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Quantity"
+            }
+          ],
+          "lines": [
+            62,
+            66
+          ],
+          "note": ""
+        },
+        "Unit Price": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Unit Price"
+            }
+          ],
+          "lines": [
+            62,
+            66
+          ],
+          "note": ""
+        },
+        "Tax Rate": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Tax Rate"
+            }
+          ],
+          "lines": [
+            62,
+            66
+          ],
+          "note": ""
+        },
+        "Total Excluding Tax": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Total Excluding Tax"
+            }
+          ],
+          "lines": [
+            62,
+            66
+          ],
+          "note": ""
+        },
+        "Tax Amount": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Tax Amount"
+            }
+          ],
+          "lines": [
+            62,
+            66
+          ],
+          "note": ""
+        },
+        "Total Including Tax": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Order_Staging",
+              "column": "Total Including Tax"
+            }
+          ],
+          "lines": [
+            63,
+            67
+          ],
+          "note": ""
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            10,
+            11,
+            12,
+            13,
+            14,
+            63,
+            67
+          ],
+          "note": "Uses @LineageKey, the latest open Order lineage row."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            71
+          ],
+          "note": "Set to the current clock time with SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            72
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            76,
+            77,
+            78
+          ],
+          "note": "Takes the cutoff time from the Lineage row matching @LineageKey."
+        }
+      }
+    }
+  },
+  "columns_mapped": 52,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Fact.Order.Order Key: ignored in jobs/order.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/order.json, and the map says generated",
+      "Fact.Order: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: in the map, though this batch's data did not change it",
+      "Integration.Lineage: changed by the legacy job, and in the map",
+      "Integration.Order_Staging: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

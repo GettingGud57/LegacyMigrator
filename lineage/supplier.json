@@ -1,0 +1,269 @@
+{
+  "job": "supplier",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedSupplierData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:34:39",
+  "tables": {
+    "Dimension.Supplier": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "Supplier Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            32,
+            33
+          ],
+          "note": "Not in the INSERT column list, so the database fills it (identity or sequence)."
+        },
+        "WWI Supplier ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "WWI Supplier ID"
+            }
+          ],
+          "lines": [
+            35
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Supplier": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Supplier"
+            }
+          ],
+          "lines": [
+            35
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Category": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Category"
+            }
+          ],
+          "lines": [
+            35
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Primary Contact": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Primary Contact"
+            }
+          ],
+          "lines": [
+            35
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Supplier Reference": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Supplier Reference"
+            }
+          ],
+          "lines": [
+            35
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Payment Days": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Payment Days"
+            }
+          ],
+          "lines": [
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Postal Code": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Postal Code"
+            }
+          ],
+          "lines": [
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Supplier_Staging",
+              "column": "WWI Supplier ID"
+            }
+          ],
+          "lines": [
+            21,
+            26,
+            36
+          ],
+          "note": "Open rows are closed off with the MIN staging Valid From per supplier; new rows get the staging Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            37
+          ],
+          "note": "Taken from the latest open Supplier lineage row, held in @LineageKey."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            41
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            42
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            46,
+            47,
+            48
+          ],
+          "note": "Subquery returns the cutoff time of the lineage row matching @LineageKey."
+        }
+      }
+    }
+  },
+  "columns_mapped": 19,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.Supplier.Supplier Key: ignored in jobs/supplier.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/supplier.json, and the map says generated",
+      "Dimension.Supplier: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: changed by the legacy job, and in the map",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

@@ -1,0 +1,407 @@
+{
+  "job": "stock_item",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedStockItemData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:34:23",
+  "tables": {
+    "Dimension.Stock Item": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "Stock Item Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            32,
+            33
+          ],
+          "note": "Not in the INSERT column list, so the database fills it (identity/sequence)."
+        },
+        "WWI Stock Item ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "WWI Stock Item ID"
+            }
+          ],
+          "lines": [
+            33,
+            37
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Stock Item": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Stock Item"
+            }
+          ],
+          "lines": [
+            33,
+            37
+          ],
+          "note": "Copied from staging."
+        },
+        "Color": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Color"
+            }
+          ],
+          "lines": [
+            33,
+            37
+          ],
+          "note": "Copied from staging."
+        },
+        "Selling Package": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Selling Package"
+            }
+          ],
+          "lines": [
+            33,
+            37
+          ],
+          "note": "Copied from staging."
+        },
+        "Buying Package": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Buying Package"
+            }
+          ],
+          "lines": [
+            33,
+            37
+          ],
+          "note": "Copied from staging."
+        },
+        "Brand": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Brand"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": "Copied from staging."
+        },
+        "Size": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Size"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": "Copied from staging."
+        },
+        "Lead Time Days": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Lead Time Days"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": "Copied from staging."
+        },
+        "Quantity Per Outer": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Quantity Per Outer"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": "Copied from staging."
+        },
+        "Is Chiller Stock": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Is Chiller Stock"
+            }
+          ],
+          "lines": [
+            34,
+            38
+          ],
+          "note": "Copied from staging."
+        },
+        "Barcode": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Barcode"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": "Copied from staging."
+        },
+        "Tax Rate": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Tax Rate"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": "Copied from staging."
+        },
+        "Unit Price": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Unit Price"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": "Copied from staging."
+        },
+        "Recommended Retail Price": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Recommended Retail Price"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": "Copied from staging."
+        },
+        "Typical Weight Per Unit": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Typical Weight Per Unit"
+            }
+          ],
+          "lines": [
+            35,
+            39
+          ],
+          "note": "Copied from staging."
+        },
+        "Photo": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Photo"
+            }
+          ],
+          "lines": [
+            36,
+            40
+          ],
+          "note": "Copied from staging."
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            36,
+            40
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Integration.StockItem_Staging",
+              "column": "Valid To"
+            }
+          ],
+          "lines": [
+            21,
+            23,
+            26,
+            29,
+            30,
+            36,
+            40
+          ],
+          "note": "Open rows are closed with the staging MIN(Valid From) per item; new rows get the staging Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            41
+          ],
+          "note": "@LineageKey is the latest unfinished Stock Item lineage row."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            45
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            46
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            50,
+            51,
+            52
+          ],
+          "note": "Subquery fetches the cutoff time for @LineageKey."
+        }
+      }
+    }
+  },
+  "columns_mapped": 28,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.Stock Item.Stock Item Key: ignored in jobs/stock_item.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/stock_item.json, and the map says generated",
+      "Dimension.Stock Item: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: in the map, though this batch's data did not change it",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

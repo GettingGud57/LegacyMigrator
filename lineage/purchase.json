@@ -1,0 +1,419 @@
+{
+  "job": "purchase",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedPurchaseData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:33:46",
+  "tables": {
+    "Integration.Purchase_Staging": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Purchase Staging Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Date Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Supplier Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Supplier",
+              "column": "Supplier Key"
+            },
+            {
+              "table": "Dimension.Supplier",
+              "column": "WWI Supplier ID"
+            },
+            {
+              "table": "Dimension.Supplier",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Supplier",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "WWI Supplier ID"
+            },
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            19,
+            20,
+            21,
+            22,
+            23,
+            24
+          ],
+          "note": "Supplier row valid at Last Modified When, earliest Valid From; 0 if none found."
+        },
+        "Stock Item Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Stock Item Key"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Valid From"
+            },
+            {
+              "table": "Dimension.Stock Item",
+              "column": "Valid To"
+            },
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "WWI Stock Item ID"
+            },
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Last Modified When"
+            }
+          ],
+          "lines": [
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
+          ],
+          "note": "Stock item row valid at Last Modified When, earliest Valid From; 0 if none found."
+        },
+        "WWI Purchase Order ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Ordered Outers": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Ordered Quantity": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Received Outers": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Package": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Is Order Finalized": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Supplier ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "WWI Stock Item ID": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Last Modified When": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Fact.Purchase": {
+      "operations": [
+        "DELETE",
+        "INSERT"
+      ],
+      "columns": {
+        "Purchase Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            41,
+            42,
+            43
+          ],
+          "note": "Omitted from the INSERT; filled by the database."
+        },
+        "Date Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Date Key"
+            }
+          ],
+          "lines": [
+            42,
+            44
+          ],
+          "note": ""
+        },
+        "Supplier Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Supplier Key"
+            }
+          ],
+          "lines": [
+            42,
+            44
+          ],
+          "note": "Staging value set by the earlier UPDATE."
+        },
+        "Stock Item Key": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Stock Item Key"
+            }
+          ],
+          "lines": [
+            42,
+            44
+          ],
+          "note": "Staging value set by the earlier UPDATE."
+        },
+        "WWI Purchase Order ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "WWI Purchase Order ID"
+            }
+          ],
+          "lines": [
+            42,
+            44
+          ],
+          "note": ""
+        },
+        "Ordered Outers": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Ordered Outers"
+            }
+          ],
+          "lines": [
+            42,
+            44
+          ],
+          "note": ""
+        },
+        "Ordered Quantity": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Ordered Quantity"
+            }
+          ],
+          "lines": [
+            42,
+            44
+          ],
+          "note": ""
+        },
+        "Received Outers": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Received Outers"
+            }
+          ],
+          "lines": [
+            43,
+            45
+          ],
+          "note": ""
+        },
+        "Package": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Package"
+            }
+          ],
+          "lines": [
+            43,
+            45
+          ],
+          "note": ""
+        },
+        "Is Order Finalized": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Purchase_Staging",
+              "column": "Is Order Finalized"
+            }
+          ],
+          "lines": [
+            43,
+            45
+          ],
+          "note": ""
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            10,
+            11,
+            12,
+            13,
+            14,
+            45
+          ],
+          "note": "Latest open Lineage row for Purchase, held in @LineageKey."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            49
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            50
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            54,
+            55,
+            56
+          ],
+          "note": "Cutoff time of the Lineage row matching @LineageKey."
+        }
+      }
+    }
+  },
+  "columns_mapped": 32,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Fact.Purchase.Purchase Key: ignored in jobs/purchase.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/purchase.json, and the map says generated",
+      "Fact.Purchase: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: in the map, though this batch's data did not change it",
+      "Integration.Lineage: changed by the legacy job, and in the map",
+      "Integration.Purchase_Staging: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

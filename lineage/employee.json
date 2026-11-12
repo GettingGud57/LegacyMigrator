@@ -1,0 +1,271 @@
+{
+  "job": "employee",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedEmployeeData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:31:51",
+  "tables": {
+    "Dimension.Employee": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "Employee Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            32,
+            33
+          ],
+          "note": "Not in the INSERT column list; the database generates it (identity/sequence)."
+        },
+        "WWI Employee ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "WWI Employee ID"
+            }
+          ],
+          "lines": [
+            33,
+            34,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Employee": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Employee"
+            }
+          ],
+          "lines": [
+            33,
+            34,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Preferred Name": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Preferred Name"
+            }
+          ],
+          "lines": [
+            33,
+            34,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Is Salesperson": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Is Salesperson"
+            }
+          ],
+          "lines": [
+            33,
+            34,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Photo": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Photo"
+            }
+          ],
+          "lines": [
+            33,
+            34,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            33,
+            34,
+            36
+          ],
+          "note": "Copied from staging on insert."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "WWI Employee ID"
+            },
+            {
+              "table": "Integration.Employee_Staging",
+              "column": "Valid To"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "WWI Employee ID"
+            },
+            {
+              "table": "Dimension.Employee",
+              "column": "Valid To"
+            }
+          ],
+          "lines": [
+            21,
+            23,
+            26,
+            28,
+            29,
+            30,
+            33,
+            34,
+            36
+          ],
+          "note": "Existing open rows are closed off with the minimum staged Valid From per employee; inserted rows take the staging Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            33,
+            35
+          ],
+          "note": "Latest open Employee lineage key held in @LineageKey and inserted on every row."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            39
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            40
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            44,
+            45,
+            46,
+            48
+          ],
+          "note": "Set from the Lineage row matching @LineageKey."
+        }
+      }
+    }
+  },
+  "columns_mapped": 17,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.Employee.Employee Key: ignored in jobs/employee.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/employee.json, and the map says generated",
+      "Dimension.Employee: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: in the map, though this batch's data did not change it",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}

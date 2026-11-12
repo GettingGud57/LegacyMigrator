@@ -1,0 +1,206 @@
+{
+  "job": "transaction_type",
+  "legacy_sql": "legacy_jobs/wwi/MigrateStagedTransactionTypeData.sql",
+  "model": "claude-sonnet-5-5",
+  "generated_at": "2026-11-12 21:35:22",
+  "tables": {
+    "Dimension.Transaction Type": {
+      "operations": [
+        "UPDATE",
+        "INSERT"
+      ],
+      "columns": {
+        "Transaction Type Key": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            33
+          ],
+          "note": "Not in the INSERT column list, so the database fills it (identity or sequence default)."
+        },
+        "WWI Transaction Type ID": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.TransactionType_Staging",
+              "column": "WWI Transaction Type ID"
+            }
+          ],
+          "lines": [
+            34
+          ],
+          "note": "Copied from staging on insert; the update only uses it to match rows."
+        },
+        "Transaction Type": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.TransactionType_Staging",
+              "column": "Transaction Type"
+            }
+          ],
+          "lines": [
+            34
+          ],
+          "note": "Copied from staging."
+        },
+        "Valid From": {
+          "kind": "copied",
+          "sources": [
+            {
+              "table": "Integration.TransactionType_Staging",
+              "column": "Valid From"
+            }
+          ],
+          "lines": [
+            34
+          ],
+          "note": "Copied from staging."
+        },
+        "Valid To": {
+          "kind": "calculated",
+          "sources": [
+            {
+              "table": "Integration.TransactionType_Staging",
+              "column": "Valid From"
+            },
+            {
+              "table": "Integration.TransactionType_Staging",
+              "column": "WWI Transaction Type ID"
+            },
+            {
+              "table": "Integration.TransactionType_Staging",
+              "column": "Valid To"
+            }
+          ],
+          "lines": [
+            21,
+            26,
+            29,
+            30,
+            34
+          ],
+          "note": "Open rows (Valid To = @EndOfTime) are closed with the minimum staging Valid From per ID; new rows get the staging Valid To."
+        },
+        "Lineage Key": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Table Name"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Data Load Completed"
+            }
+          ],
+          "lines": [
+            12,
+            13,
+            14,
+            15,
+            16,
+            35
+          ],
+          "note": "Latest open Lineage row for 'Transaction Type', held in @LineageKey."
+        }
+      }
+    },
+    "Integration.Lineage": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Lineage Key": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": "Only used in the WHERE clause."
+        },
+        "Data Load Started": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        },
+        "Data Load Completed": {
+          "kind": "generated",
+          "sources": [],
+          "lines": [
+            39
+          ],
+          "note": "Set to SYSDATETIME()."
+        },
+        "Was Successful": {
+          "kind": "constant",
+          "sources": [],
+          "lines": [
+            40
+          ],
+          "note": "Set to 1."
+        },
+        "Source System Cutoff Time": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": ""
+        }
+      }
+    },
+    "Integration.ETL Cutoff": {
+      "operations": [
+        "UPDATE"
+      ],
+      "columns": {
+        "Table Name": {
+          "kind": "unchanged",
+          "sources": [],
+          "lines": [],
+          "note": "Only used in the WHERE clause."
+        },
+        "Cutoff Time": {
+          "kind": "lookup",
+          "sources": [
+            {
+              "table": "Integration.Lineage",
+              "column": "Source System Cutoff Time"
+            },
+            {
+              "table": "Integration.Lineage",
+              "column": "Lineage Key"
+            }
+          ],
+          "lines": [
+            44,
+            45,
+            46,
+            48
+          ],
+          "note": "Subquery returns the Source System Cutoff Time of the current lineage row."
+        }
+      }
+    }
+  },
+  "columns_mapped": 14,
+  "checks": {
+    "structure_problems": [],
+    "agreements": [
+      "Dimension.Transaction Type.Transaction Type Key: ignored in jobs/transaction_type.json, and the map says generated",
+      "Integration.Lineage.Data Load Completed: ignored in jobs/transaction_type.json, and the map says generated",
+      "Dimension.Transaction Type: changed by the legacy job, and in the map",
+      "Integration.ETL Cutoff: changed by the legacy job, and in the map",
+      "Integration.Lineage: changed by the legacy job, and in the map"
+    ],
+    "disagreements": []
+  }
+}
