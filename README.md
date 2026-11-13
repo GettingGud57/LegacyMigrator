@@ -176,6 +176,7 @@ LegacyMigrator/
 ├── scripts/               Test setup: loads each job's staging table, replacing Microsoft's Windows-only SSIS step
 │   ├── make_wwi_jobs.py   Sets up the WideWorldImporters jobs: exports each procedure, writes its staging loader and an empty job spec
 │   ├── column_evidence.py Prints the evidence for choosing a job's keys and ignored columns
+│   ├── sqlglot_demo.py    Demo from the video: sqlglot converts a statement that Spark then rejects (needs `pip install sqlglot==30.31.0`, not in requirements.txt)
 │   └── insurance/         Builds the synthetic insurance databases and their dev and holdout loaders
 ├── test/cheats/           A fake cheating translation that cheat.py must reject
 ├── snapshots/             Created by run_legacy.py and loop.py, git-ignored
@@ -192,7 +193,7 @@ LegacyMigrator/
 
 | Tool | Used for |
 |---|---|
-| Claude Sonnet 5.5 (`claude-sonnet-5-5`, Anthropic API) | Part of the tool: `translate.py` asks it to write each PySpark translation, and `lineage.py` asks it to draft each job's column-level lineage. It sees the legacy SQL and table schemas, never any data. |
+| Claude Sonnet 5.5 (`claude-sonnet-5-5`, Anthropic API) | Part of the tool: `translate.py` asks it to write each PySpark translation, and `lineage.py` asks it to draft each job's column-level lineage. It sees the legacy SQL and table schemas, plus the error or diff report of a failed dev attempt, and never the holdout. |
 | Claude (used by a teammate) | Generated the synthetic insurance test databases, their dev and holdout loaders, and `scripts/insurance/run_sql.py`. |
 | Claude Code and Claude chat (claude.ai) | Helped build the tool. They wrote `migrator/loop.py`, `migrator/run_spark.py`, `migrator/run_legacy.py`, `migrator/lineage.py`, `docker-compose.yml`, the `scripts/load_*_staging.sql` loaders, `scripts/make_wwi_jobs.py`, `scripts/column_evidence.py` and `SETUP.md`, helped edit `migrator/translate.py`, and helped write this README. |
 
